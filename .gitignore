@@ -1,0 +1,6 @@
+*.log
+__pycache__
+test
+*.ini
+!example_config/*.ini
+control_identifiers
