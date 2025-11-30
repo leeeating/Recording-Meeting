@@ -10,16 +10,10 @@ class Config(BaseSettings):
     )
 
     # Database Configuration
-    MEETING_DB_URL: str = Field(
+    DATABASE_URL: str = Field(
         ..., 
         validation_alias="MEETING_DB_URL",
         description="會議資訊的資料庫連線字串。",
-    )
-
-    SCHEDULER_DB_URL: str = Field(
-        ..., 
-        validation_alias="SCHEDULER_DB_URL",
-        description="錄製程式的資料庫連線字串。",
     )
 
     # logging Configuration

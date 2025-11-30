@@ -1,18 +1,41 @@
 import logging
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
 from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
+
 from .config import config
 
 db_logger = logging.getLogger(__name__)
+
+class Base(DeclarativeBase):
+    """
+    統一的 ORM 基礎類，用於單一資料庫架構。
+    所有 ORM 模型 (Meeting 和 Task) 都將繼承此類。
+    """
+    # Auditing Columns - 適用於所有表格 (Meeting, Task)
+    created_at: Mapped[datetime] = mapped_column(
+        default=func.now(), 
+        doc="數據創建時間"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        default=func.now(), 
+        onupdate=func.now(),
+        doc="數據最後更新時間"
+    )
 
 def create_db_resources(url: str, db_name: str):
     """創建 Engine 和 SessionLocal 的輔助函數。"""
     db_logger.info(f"Initializing {db_name} DB engine.")
     
+    def is_sqlite_url(url: str) -> bool:
+        return url.lower().startswith("sqlite")
+
     engine = create_engine(
         url, 
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False} if is_sqlite_url(url) else {}
     )
 
     SessionLocal = sessionmaker(
@@ -23,30 +46,12 @@ def create_db_resources(url: str, db_name: str):
     db_logger.info(f"{db_name} Engine initialized.")
     return engine, SessionLocal
 
-
-
-# 雙 ORM 基礎類 - 繼承自 Base 並設置抽象，用於隔離模型映射
-class SchedulerBase(DeclarativeBase):
-    """用於排程元數據資料庫的模型基類。"""
-    __abstract__ = True 
-
-class MeetingBase(DeclarativeBase):
-    """用於會議業務資料庫的模型基類。"""
-    __abstract__ = True 
-
-
-
-scheduler_engine, SchedulerSessionLocal = create_db_resources(
-    config.SCHEDULER_DB_URL, "SCHEDULER"
+database_engine, SessionLocal = create_db_resources(
+    config.DATABASE_URL, "SCHEDULER"
 )
-
-meeting_engine, MeetingSessionLocal = create_db_resources(
-    config.MEETING_DB_URL, "MEETING"
-)
-
 
 def get_scheduler_db() -> Generator[Session, None, None]:
-    db = SchedulerSessionLocal()
+    db = SessionLocal()
     try:
         yield db # 將 Session 實例傳遞給 API 或 Service 路由
         db.commit() # 成功時提交事務
@@ -59,21 +64,6 @@ def get_scheduler_db() -> Generator[Session, None, None]:
     finally:
         db.close() # 關閉 Session
 
-def get_meeting_db() -> Generator[Session, None, None]:
-    db = MeetingSessionLocal()
-    try:
-        yield db
-        db.commit()
-
-    except Exception as e:
-        db.rollback()
-        db_logger.error(f"Meeting DB Transaction Error: {e}", exc_info=True)
-        raise
-    
-    finally:
-        db.close()
-
-
 def initialize_db_schema():
     """
     集中處理創建所有資料庫表格的邏輯。
@@ -81,7 +71,6 @@ def initialize_db_schema():
     """
     db_logger.info("Initializing database schemas...")
     
-    SchedulerBase.metadata.create_all(bind=scheduler_engine)
-    MeetingBase.metadata.create_all(bind=meeting_engine)
-    
+    Base.metadata.create_all(bind=database_engine)
+
     db_logger.info("Database schemas created successfully.")
