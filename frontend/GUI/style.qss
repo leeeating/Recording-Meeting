@@ -1,0 +1,14 @@
+QLabel#header {
+    font-size: 18pt; 
+    font-weight: bold;
+}
+
+QListWidget::item {
+    padding: 3px 10px; ; 
+}
+
+/* 針對選中項目的樣式 (可選) */
+QListWidget::item:selected {
+    background-color: #007bff;
+    color: white;
+}
