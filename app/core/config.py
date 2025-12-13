@@ -10,10 +10,16 @@ class Config(BaseSettings):
     )
 
     # Database Configuration
-    DATABASE_URL: str = Field(
+    MEETING_DB_URL: str = Field(
         ..., 
         validation_alias="MEETING_DB_URL",
         description="會議資訊的資料庫連線字串。",
+    )
+
+    SCHEDULER_DB_URL: str = Field(
+        ..., 
+        validation_alias="SCHEDULER_DB_URL",
+        description="排程器使用的資料庫連線字串。",
     )
 
     # logging Configuration
@@ -26,6 +32,11 @@ class Config(BaseSettings):
     MAX_RETRY_ATTEMPTS: int = Field(
         default=3,
         description="在錄製失敗時的最大重試次數。",
+    )
+
+    TASK_EXECUTION_TIMEOUT: int = Field(
+        default=300,
+        description="執行錄製任務的超時時間（秒）。",
     )
 
     # 告訴 Pydantic 從 .env 檔案讀取設定
