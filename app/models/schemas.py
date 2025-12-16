@@ -15,16 +15,12 @@ class CustomBaseModel(BaseModel):
         json_encoders={datetime: lambda v: v.astimezone(TAIPEI_TZ).isoformat()},
     )
 
-# ----- Meeting Schemas -----
 
+# ----- Meeting Schemas -----
 class MeetingCreateSchema(CustomBaseModel):
     """
     新的主輸入契約：用於創建 Meeting，並包含所有排程規則。
     """
-
-    # 創建者資訊 (從 Task 移入)
-    creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
-    creator_email: str = Field(..., max_length=100, description="會議建立者 Email")
 
     # 核心會議資訊 (不變)
     meeting_name: str = Field(..., max_length=100, description="會議名稱")
@@ -33,6 +29,9 @@ class MeetingCreateSchema(CustomBaseModel):
     room_id: Optional[str] = Field(None, max_length=50, description="會議識別 ID")
     meeting_password: Optional[str] = Field(None, max_length=50, description="會議密碼")
     meeting_layout: LayoutType = Field(..., description="會議佈局")
+
+    creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
+    creator_email: str = Field(..., max_length=100, description="會議建立者 Email")
 
     # 排程時間與規則 (從 Task 移入)
     start_time: datetime = Field(..., description="排程開始時間")
@@ -59,7 +58,6 @@ class MeetingCreateSchema(CustomBaseModel):
 
     @model_validator(mode="after")
     def validate_meeting_rules(self) -> Self:
-        # 1. 檢查連線資訊
         has_url = bool(self.meeting_url)
         has_room_id = bool(self.room_id)
         has_password = bool(self.meeting_password)
@@ -75,6 +73,18 @@ class MeetingCreateSchema(CustomBaseModel):
 
         return self
 
+    @field_validator("repeat_unit", mode="before")
+    @classmethod
+    def coerce_int(cls, v: Any) -> Optional[int]:
+        if v is None or v == "":
+            return None
+
+        try:
+            return int(v)
+
+        except (ValueError, TypeError):
+            raise ValueError("重複天數必須是有效的數字格式")
+
     @model_validator(mode="after")
     def validate_repeat_rules(self) -> Self:
         if self.repeat:
@@ -85,6 +95,17 @@ class MeetingCreateSchema(CustomBaseModel):
             if self.repeat_end_date <= self.start_time:
                 raise ValueError("'repeat_end_date' 必須晚於 'start_time'。")
         return self
+
+    @field_validator("repeat_end_date", mode="after")
+    @classmethod
+    def force_to_end_of_day(cls, v: Optional[datetime]) -> Optional[datetime]:
+        """
+        將輸入的日期強制轉換為當日的 23:59:59
+        """
+        if v is None:
+            return None
+
+        return v.replace(hour=23, minute=59, second=59, microsecond=0)
 
     @model_validator(mode="after")
     def validate_start_end_time(self) -> Self:
@@ -102,8 +123,20 @@ class MeetingResponseSchema(MeetingCreateSchema):
     tasks: List["TaskResponseSchema"] = Field(..., description="關聯的排程任務列表")
 
 
-# ----- Task Schemas -----
+class MeetingQuerySchema(BaseModel):
+    meeting_name_like: Optional[str] = Field(None, description="依據會議名稱模糊搜索。")
+    start_time: Optional[datetime] = Field(None, description="過濾起始時間。")
 
+    skip: int = Field(0, ge=0, description="跳過的記錄數。")
+    limit: int = Field(100, le=200, description="每頁的記錄數。")
+
+    sort_by: str = Field(
+        "start_time", pattern=r"^(start_time|meeting_name)$", description="排序欄位。"
+    )
+    order: str = Field("asc", pattern=r"^(asc|desc)$", description="排序順序。")
+
+
+# ----- Task Schemas -----
 class TaskResponseSchema(CustomBaseModel):
     """
     用於返回 Task 資料的 Schema (只包含執行狀態和結果)。
@@ -113,18 +146,15 @@ class TaskResponseSchema(CustomBaseModel):
     created_at: datetime = Field(..., description="排程創建時間")
     updated_at: datetime = Field(..., description="排程最後更新時間")
 
-    retry_count: int = Field(..., description="任務重試次數")
     status: TaskStatus = Field(..., description="排程狀態")
     save_path: Optional[str] = Field(
         None, max_length=200, description="錄製檔案儲存路徑"
     )
 
-    meeting_id: int = Field(..., description="對應 Meeting 表的主鍵 ID (外鍵)")
-
     # Meeting Info.
+    meeting_name: str = Field(..., description="所屬會議名稱 (取自 Meeting)")
     start_time: datetime = Field(..., description="排程開始時間 (取自 Meeting)")
     end_time: datetime = Field(..., description="排程結束時間 (取自 Meeting)")
-    meeting_name: str = Field(..., description="所屬會議名稱 (取自 Meeting)")
     creator_name: str = Field(..., description="會議建立者名稱 (取自 Meeting)")
     creator_email: str = Field(..., description="會議建立者 Email (取自 Meeting)")
 

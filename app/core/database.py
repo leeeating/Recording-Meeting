@@ -35,7 +35,7 @@ def create_db_resources(url: str, db_name: str):
 
 database_engine, SessionLocal = create_db_resources(config.MEETING_DB_URL, "SCHEDULER")
 
-
+# for web ui
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

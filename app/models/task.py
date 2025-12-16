@@ -36,6 +36,10 @@ class TaskORM(Base):
         nullable=False, doc="任務結束時間"
     )
 
+    duration_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, doc="任務持續時間（分鐘）"
+    )
+
     save_path: Mapped[str | None] = mapped_column(
         String(200), nullable=True, doc="錄製檔案儲存路徑"
     )
