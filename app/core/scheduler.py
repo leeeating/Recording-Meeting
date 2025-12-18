@@ -1,6 +1,4 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-
-from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
@@ -23,3 +21,5 @@ def create_scheduler() -> BackgroundScheduler:
     )
 
     return scheduler
+
+scheduler = create_scheduler()

@@ -33,9 +33,9 @@ def create_db_resources(url: str, db_name: str):
     return engine, SessionLocal
 
 
-database_engine, SessionLocal = create_db_resources(config.MEETING_DB_URL, "SCHEDULER")
+database_engine, SessionLocal = create_db_resources(config.MEETING_DB_URL, "Meeting")
 
-# for web ui
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
@@ -44,7 +44,7 @@ def get_db() -> Generator[Session, None, None]:
 
     except Exception as e:
         db.rollback()
-        db_logger.error(f"Scheduler DB Transaction Error: {e}", exc_info=True)
+        db_logger.error(f"Scheduler DB Transaction Error", exc_info=True)
         raise
 
     finally:

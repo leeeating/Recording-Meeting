@@ -37,7 +37,7 @@ class TaskORM(Base):
     )
 
     duration_minutes: Mapped[int] = mapped_column(
-        Integer, nullable=False, doc="任務持續時間（分鐘）"
+        Integer, nullable=True, doc="任務持續時間（分鐘）"
     )
 
     save_path: Mapped[str | None] = mapped_column(

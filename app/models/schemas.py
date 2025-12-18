@@ -56,6 +56,29 @@ class MeetingCreateSchema(CustomBaseModel):
         else:
             return dt.astimezone(TAIPEI_TZ)
 
+    @field_validator("repeat_unit", mode="before")
+    @classmethod
+    def coerce_int(cls, v: Any) -> Optional[int]:
+        if v is None or v == "":
+            return None
+
+        try:
+            return int(v)
+
+        except (ValueError, TypeError):
+            raise ValueError("重複天數必須是有效的數字格式")
+
+    @field_validator("repeat_end_date", mode="after")
+    @classmethod
+    def force_to_end_of_day(cls, v: Optional[datetime]) -> Optional[datetime]:
+        """
+        將輸入的日期強制轉換為當日的 23:59:59
+        """
+        if v is None:
+            return None
+
+        return v.replace(hour=23, minute=59, second=59, microsecond=0)
+
     @model_validator(mode="after")
     def validate_meeting_rules(self) -> Self:
         has_url = bool(self.meeting_url)
@@ -73,18 +96,6 @@ class MeetingCreateSchema(CustomBaseModel):
 
         return self
 
-    @field_validator("repeat_unit", mode="before")
-    @classmethod
-    def coerce_int(cls, v: Any) -> Optional[int]:
-        if v is None or v == "":
-            return None
-
-        try:
-            return int(v)
-
-        except (ValueError, TypeError):
-            raise ValueError("重複天數必須是有效的數字格式")
-
     @model_validator(mode="after")
     def validate_repeat_rules(self) -> Self:
         if self.repeat:
@@ -96,22 +107,12 @@ class MeetingCreateSchema(CustomBaseModel):
                 raise ValueError("'repeat_end_date' 必須晚於 'start_time'。")
         return self
 
-    @field_validator("repeat_end_date", mode="after")
-    @classmethod
-    def force_to_end_of_day(cls, v: Optional[datetime]) -> Optional[datetime]:
-        """
-        將輸入的日期強制轉換為當日的 23:59:59
-        """
-        if v is None:
-            return None
-
-        return v.replace(hour=23, minute=59, second=59, microsecond=0)
-
     @model_validator(mode="after")
     def validate_start_end_time(self) -> Self:
-        if self.start_time >= self.end_time:
-            raise ValueError("'end_time' 必須晚於 'start_time'。")
-        return self
+        if datetime.now(TAIPEI_TZ) < self.start_time < self.end_time:
+            return self
+
+        raise ValueError("排程開始時間必須晚於當前時間。")
 
 
 class MeetingResponseSchema(MeetingCreateSchema):
@@ -120,7 +121,7 @@ class MeetingResponseSchema(MeetingCreateSchema):
     created_at: datetime = Field(..., description="會議創建時間")
     updated_at: datetime = Field(..., description="會議最後更新時間")
     # 這裡的 List 類型必須引用 TaskResponseSchema
-    tasks: List["TaskResponseSchema"] = Field(..., description="關聯的排程任務列表")
+    # tasks: List["TaskResponseSchema"] = Field(..., description="關聯的排程任務列表")
 
 
 class MeetingQuerySchema(BaseModel):
