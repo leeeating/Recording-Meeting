@@ -1,0 +1,64 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  standard:
+    format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+filters:
+  email_filter:
+    (): shared.logger.EmailFilter
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: standard
+    stream: ext://sys.stdout
+
+  backend_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: standard
+    filename: logs/app.log
+    when: D
+    interval: 1
+    backupCount: 30
+    encoding: utf-8
+
+  frontend_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: standard
+    filename: logs/frontend.log
+    when: D
+    interval: 1
+    backupCount: 30
+    encoding: utf-8
+
+  email:
+    class: logging.handlers.SMTPHandler
+    level: ERROR
+    formatter: standard
+    mailhost: ["smtp.gmail.com", 587]
+    fromaddr: "sender@gmail.com"
+    toaddrs: ["admin@gmail.com"]
+    subject: "系統嚴重錯誤報警"
+    secure: []
+    filters: [email_filter]
+
+root:
+  level: WARNING
+  handlers: [console]
+
+loggers:
+  app:
+    level: DEBUG
+    handlers: [backend_file, email]
+    propagate: False
+
+  frontend:
+    level: DEBUG
+    handlers: [frontend_file, email]
+    propagate: False

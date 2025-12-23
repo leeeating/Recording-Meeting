@@ -1,34 +1,30 @@
 import logging
-import sys
-from logging.handlers import TimedRotatingFileHandler
+import logging.config
+import yaml
 from pathlib import Path
+from .config import config
+
+
+class EmailFilter(logging.Filter):
+    def filter(self, record):
+        return getattr(record, "send_email", False)
+
 
 def setup_logger():
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    # Create logs directory if it doesn't exist
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
-    log_file = logs_dir / "app.log"
 
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    curr_folder = Path(__file__).parent
+    config_path = curr_folder / "log_config.yaml"
+    with open(config_path, "r", encoding="utf-8") as f:
+        logging_dict = yaml.safe_load(f)
 
-    # File handler that rotates logs daily
-    file_handler = TimedRotatingFileHandler(
-        filename=log_file,
-        when="D",
-        interval=1,
-        backupCount=30,
-        encoding="utf-8",
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    logging_dict["root"]["level"] = config.LOG_LEVEL
 
-    # Stream handler for console output
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    return logger
+    if "email" in logging_dict["handlers"]:
+        email_h = logging_dict["handlers"]["email"]
+        email_h["fromaddr"] = config.EMAIL_USER
+        email_h["toaddrs"] = [config.EMAIL_USER]
+        email_h["credentials"] = [config.EMAIL_USER, config.EMAIL_APP_PASSWORD]
+
+    logging.config.dictConfig(logging_dict)
