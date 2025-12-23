@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -23,10 +24,8 @@ class SchedulingError(BaseError):
 
 
 def register_exception_handlers(app: FastAPI):
-
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request: Request, exc: NotFoundError):
-
         return JSONResponse(
             status_code=404, content={"error": "找不到資源", "detail": exc.detail}
         )

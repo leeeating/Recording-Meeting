@@ -1,12 +1,11 @@
 import logging
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 
-from .config import config
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+from shared.config import config
 
 db_logger = logging.getLogger(__name__)
 
@@ -42,9 +41,9 @@ def get_db() -> Generator[Session, None, None]:
         yield db
         db.commit()
 
-    except Exception as e:
+    except Exception:
         db.rollback()
-        db_logger.error(f"Scheduler DB Transaction Error", exc_info=True)
+        db_logger.error("Scheduler DB Transaction Error", exc_info=True)
         raise
 
     finally:

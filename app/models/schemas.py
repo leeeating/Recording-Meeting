@@ -1,9 +1,10 @@
 from datetime import datetime
+from typing import Any, Optional, Self
 from zoneinfo import ZoneInfo
-from typing import Any, Optional, Self, List
-from pydantic import BaseModel, Field, model_validator, field_validator, ConfigDict
 
-from .enums import MeetingType, LayoutType, TaskStatus
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from .enums import LayoutType, MeetingType, TaskStatus
 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
@@ -116,7 +117,6 @@ class MeetingCreateSchema(CustomBaseModel):
 
 
 class MeetingResponseSchema(MeetingCreateSchema):
-
     id: int = Field(..., description="會議主鍵 ID")
     created_at: datetime = Field(..., description="會議創建時間")
     updated_at: datetime = Field(..., description="會議最後更新時間")

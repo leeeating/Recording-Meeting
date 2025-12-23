@@ -1,9 +1,8 @@
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from shared.config import config
-
 
 JOB_STORES = {"default": SQLAlchemyJobStore(url=config.SCHEDULER_DB_URL)}
 

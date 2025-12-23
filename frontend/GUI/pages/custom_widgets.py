@@ -1,19 +1,16 @@
+from PyQt6.QtCore import QDateTime, Qt
 from PyQt6.QtWidgets import (
     QApplication,
-    QWidget,
+    QDateTimeEdit,
     QHBoxLayout,
     QLabel,
-    QDateTimeEdit,
     QTimeEdit,
-    QComboBox,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QDateTime, QTime
-from typing import Tuple
 
 
 class DateTimeInputGroup(QWidget):
-
-    def __init__(self, initial_offset_secs: int = 0):
+    def __init__(self, offset_hours: int = 0):
         super().__init__()
 
         main_layout = QHBoxLayout(self)
@@ -21,7 +18,7 @@ class DateTimeInputGroup(QWidget):
 
         # --- 1. 元件工廠 (將前面定義的工廠邏輯搬移到這裡) ---
         # A. 日期選擇器
-        initial_datetime = QDateTime.currentDateTime().addSecs(initial_offset_secs)
+        initial_datetime = QDateTime.currentDateTime().addSecs(offset_hours * 3600)
 
         self.date_picker = QDateTimeEdit(initial_datetime)
         self.date_picker.setCalendarPopup(True)
@@ -52,6 +49,12 @@ class DateTimeInputGroup(QWidget):
         combined_datetime = QDateTime(date_part, time_part)
 
         return combined_datetime.toString(Qt.DateFormat.ISODate)
+
+    def reset(self):
+        """重置日期和時間為當前時間"""
+        current_datetime = QDateTime.currentDateTime()
+        self.date_picker.setDate(current_datetime.date())
+        self.time_edit.setTime(current_datetime.time())
 
 
 if __name__ == "__main__":

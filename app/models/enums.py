@@ -1,10 +1,12 @@
 from enum import Enum
 from typing import final
 
+
 @final
 class MeetingType(str, Enum):
     WEBEX = "Webex"
     ZOOM = "Zoom"
+
 
 @final
 class LayoutType(str, Enum):

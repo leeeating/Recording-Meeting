@@ -1,10 +1,12 @@
 from datetime import datetime
-from typing import List, TYPE_CHECKING
-from sqlalchemy import Integer, String, Enum, Boolean, DateTime, ForeignKey
+from typing import TYPE_CHECKING, List
+
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 
-from .enums import MeetingType, LayoutType
+from .enums import LayoutType, MeetingType
 
 if TYPE_CHECKING:
     from .task import TaskORM

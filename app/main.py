@@ -1,16 +1,19 @@
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.logger import setup_logger
-from app.core.scheduler import scheduler
-from app.core.database import initialize_db_schema, database_engine
-from app.core.exceptions import register_exception_handlers
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
 from app.controllers.meeting_controller import router as meeting_router
 from app.controllers.task_controller import router as task_router
+from app.core.database import database_engine, initialize_db_schema
+from app.core.exceptions import register_exception_handlers
+from app.core.scheduler import scheduler
+from shared.logger import setup_logger
 
-logger = setup_logger()
+setup_logger()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -21,9 +24,9 @@ async def lifespan(app: FastAPI):
 
         jobs = scheduler.get_jobs()
         if not jobs:
-            logger.info("📋 目前排程器中沒有任何待處理任務。")
+            logger.info("目前排程器中沒有任何待處理任務。")
         else:
-            logger.info(f"📋 偵測到已存在的任務數 : {len(jobs)}")
+            logger.info(f"偵測到已存在的任務數 : {len(jobs)}")
 
     except Exception as e:
         logger.critical(f"Failed to initialize database schema: {e}")
