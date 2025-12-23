@@ -2,7 +2,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from app.core.config import config
+from shared.config import config
 
 
 JOB_STORES = {"default": SQLAlchemyJobStore(url=config.SCHEDULER_DB_URL)}
@@ -21,5 +21,6 @@ def create_scheduler() -> BackgroundScheduler:
     )
 
     return scheduler
+
 
 scheduler = create_scheduler()
