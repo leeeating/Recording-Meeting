@@ -6,6 +6,17 @@ formatters:
     format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
 
+  email_formatter:
+    format: |
+      報警時間: %(asctime)s
+      日誌等級: %(levelname)s
+      發生檔案: %(filename)s (第 %(lineno)d 行)
+      函數名稱: %(funcName)s
+
+      錯誤訊息: 
+      %(message)s
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
 filters:
   email_filter:
     (): shared.logger.EmailFilter
@@ -38,9 +49,9 @@ handlers:
     encoding: utf-8
 
   email:
-    class: logging.handlers.SMTPHandler
+    (): shared.logger.AsyncSMTPHandler
     level: ERROR
-    formatter: standard
+    formatter: email_formatter
     mailhost: ["smtp.gmail.com", 587]
     fromaddr: "sender@gmail.com"
     toaddrs: ["admin@gmail.com"]

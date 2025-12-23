@@ -3,13 +3,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Literal
 
+IS_WINDOWS: bool = platform.system() == "Windows"
+
 
 class Config(BaseSettings):
-    # Base Configuration
-    PROJECT_NAME: str = Field(
-        default="Meeting-Recorder",
-        description="應用程式的名稱。",
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+    # Base Configuration
+    PROJECT_NAME: str = "Meeting-Recorder"
 
     # Database Configuration
     MEETING_DB_URL: str = Field(
@@ -31,7 +34,6 @@ class Config(BaseSettings):
     )
 
     # OBS Configuration
-    IS_WINDOWS: bool = platform.system() == "Windows"
 
     OBS_PATH: str = Field(
         default=(
@@ -75,13 +77,11 @@ class Config(BaseSettings):
     # Email Configuration
     EMAIL_USER: str = Field(
         ...,
-        validation_alias="EMAIL_USERNAME",
         description="電子郵件帳號。",
     )
 
     EMAIL_APP_PASSWORD: str = Field(
         ...,
-        validation_alias="EMAIL_PASSWORD",
         description="電子郵件密碼。",
     )
 
@@ -90,9 +90,6 @@ class Config(BaseSettings):
         default=300,
         description="等待會議開始的超時時間（秒）。",
     )
-
-    # 告訴 Pydantic 從 .env 檔案讀取設定
-    model_config = SettingsConfigDict(env_file=".env")
 
 
 config = Config()
