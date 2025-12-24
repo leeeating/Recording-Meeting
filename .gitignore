@@ -1,6 +1,11 @@
 *.log
 __pycache__
-test
+tests
 *.ini
 !example_config/*.ini
 control_identifiers
+*.env
+data/
+.gitignore
+.vscode/
+logs/
