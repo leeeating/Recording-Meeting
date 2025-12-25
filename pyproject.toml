@@ -17,6 +17,8 @@ dependencies = [
     "pywin32>=308; sys_platform == 'win32'",
     "pyautogui>=0.9.54",
     "pyyaml>=6.0.3",
+    "pywinauto>=0.6.9; sys_platform == 'win32'",
+    "pywinauto>=0.6.9",
 ]
 
 [project.optional-dependencies]
