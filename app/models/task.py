@@ -16,10 +16,11 @@ class TaskORM(Base):
     """
     Columns: (單一排程的執行與狀態)
     - id: 主鍵
-    - meeting_id: 與 Meeting 的外鍵
     - status: 排程狀態
+    - start_time/end_time: 排程時間定義
+    - duration_minutes: 任務持續時間（分鐘）
     - save_path: 錄製檔案儲存路徑
-    - retry_count: 重試次數 (新欄位，用於健壯性)
+    - meeting_id: 
     """
 
     __tablename__ = "tasks"

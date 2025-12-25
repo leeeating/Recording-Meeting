@@ -120,3 +120,44 @@ def end_recording(task_id: int):
             logger.error(
                 f"Update task status failed (ID: {task_id}): {str(e)}", exc_info=True
             )
+
+
+if __name__ == "__main__":
+    from datetime import datetime
+
+    from app.models import MeetingORM
+
+    with Session(database_engine) as db:
+        test_task = db.query(TaskORM).filter(TaskORM.id == 999).first()
+
+        if test_task:
+            print("detecting test task")
+            db.delete(test_task)
+            db.commit()
+
+        test_meeting = MeetingORM(
+            id=999,
+            meeting_name="test",
+            meeting_type="ZOOM",
+            meeting_url="https://us05web.zoom.us/j/8631054479?pwd=XGui4JAL9Kx6bH8DMFUo9IPOG12YlS.1",
+            meeting_layout="grid",
+            creator_name="LET",
+            creator_email="test",
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+            repaet=False,
+        )
+        db.add(test_meeting)
+        db.flush()
+
+        test_task = TaskORM(
+            meeting_id=test_meeting.id,
+            status=TaskStatus.UPCOMING,
+            start_time=test_meeting.start_time,
+            end_time=test_meeting.end_time,
+        )
+        db.add(test_task)
+        db.commit()
+
+        print("--- 開始測試 start_recording ---")
+        start_recording(task_id=999)

@@ -18,14 +18,16 @@ class MeetingORM(Base):
     - id: 主鍵
     - meeting_name: 會議名稱
     - meeting_type: 會議類型
+    - meeting_layout: 會議佈局
+    - creator_name/email: 會議建立者
+    - start_time/end_time: 會議時間定義
+    - repeat : 是否重複排程
+
+    nullable:
     - meeting_url: 會議連結
     - room_id: 會議識別 ID
     - meeting_password: 會議密碼
-    - meeting_layout: 會議佈局
-
-    - creator_name/email: 會議建立者 (新欄位，從 Task 移入)
-    - start_time/end_time: 會議時間定義 (新欄位，從 Task 移入)
-    - repeat/repeat_unit/repeat_end_date: 會議重複規則 (新欄位，從 Task 移入)
+    - repeat_unit/repeat_end_date: 會議重複規則
     - tasks: 與 Task 的關聯 (One-to-Many)
     """
 
