@@ -1,0 +1,254 @@
+import logging
+from datetime import datetime, timedelta
+from typing import List
+
+from sqlalchemy import asc, desc
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.query import Query
+
+from app.core.exceptions import NotFoundError, SchedulingError
+from app.core.scheduler import scheduler
+from app.models import MeetingORM, TaskORM
+from app.models.enums import TaskStatus
+from app.models.schemas import TaskQuerySchema, TaskResponseSchema
+
+from ..recorder.recorder import end_recording, start_recording
+
+task_service_logger = logging.getLogger(__name__)
+
+
+class TaskService:
+    """
+    任務服務類別：處理 Task 數據的持久化、排程和查詢。
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.scheduler = scheduler
+        self.logger = task_service_logger
+
+    # ----- Insert and Schedule Methods -----
+    def create_task(self, meeting: MeetingORM) -> List[TaskORM]:
+        """
+        根據 Meeting ORM 實例，創建一個或多個 Task 記錄。
+        這是 MeetingService 協調 TaskService 的入口點。
+        """
+        self.logger.info(
+            f"Creating tasks for Meeting ID {meeting.id} (Repeat: {meeting.repeat})"
+        )
+
+        execute_time = self._calculate_execute_time(meeting)
+        created_tasks: list[TaskORM] = []
+
+        for start_dt, end_dt in execute_time:
+            task_instance = TaskORM(
+                meeting_id=meeting.id,
+                status=TaskStatus.UPCOMING,
+                start_time=start_dt,
+                end_time=end_dt,
+            )
+            self.db.add(task_instance)
+            created_tasks.append(task_instance)
+
+        self.db.flush()
+        return created_tasks
+
+    # ----- Query Methods -----
+    def get_all_tasks(self, params: TaskQuerySchema) -> List[TaskResponseSchema]:
+        self.logger.debug(f"Retrieving tasks with query params: {params.model_dump()}")
+
+        query = self._get_base_query()
+
+        # filtering
+        if params.status:
+            query = query.filter(TaskORM.status == params.status)
+
+        # 依據會議名稱模糊搜索
+        if params.meeting_name_like:
+            # 必須透過 Task.meeting 關係來存取 Meeting 模型中的欄位
+            search_term = f"%{params.meeting_name_like}%"
+            query = query.filter(TaskORM.meeting.meeting_name.like(search_term))
+
+        # sorting
+        if params.sort_by == "start_time":
+            sort_column = TaskORM.meeting.start_time
+
+        elif params.sort_by == "status":
+            sort_column = TaskORM.status
+
+        else:
+            sort_column = TaskORM.meeting.start_time
+
+        # ordering
+        if params.order == "desc":
+            query = query.order_by(desc(sort_column))
+
+        else:
+            query = query.order_by(asc(sort_column))
+
+        # pagination
+        tasks = query.offset(params.skip).limit(params.limit).all()
+
+        return [TaskResponseSchema.model_validate(task) for task in tasks]
+
+    def get_task_by_id(self, task_id: int) -> TaskResponseSchema:
+        task = self._get_base_query().filter(TaskORM.id == task_id).first()
+
+        if not task:
+            self.logger.warning(f"Task ID {task_id} not found.")
+            raise NotFoundError(detail=f"Task ID {task_id} not found.")
+
+        return TaskResponseSchema.model_validate(task)
+
+    # ----- Update Methods -----
+    def update_task(self, task_id: int, **kwargs) -> TaskResponseSchema:
+        """
+        通用更新 Task 屬性，根據傳入的關鍵字參數進行更新並記錄變更。
+        """
+        task = self.db.query(TaskORM).filter(TaskORM.id == task_id).first()
+
+        if not task:
+            self.logger.error(f"Cannot update: Task ID {task_id} not found.")
+            raise NotFoundError(detail=f"Task ID {task_id} not found.")
+
+        for key, value in kwargs.items():
+            if hasattr(task, key) and value is not None:
+                current_value = getattr(task, key)
+                if current_value != value:
+                    setattr(task, key, value)
+                    self.logger.info(f"Updated Task ID {task_id}: set {key} to {value}")
+
+        return TaskResponseSchema.model_validate(task)
+
+    def update_task_status(
+        self, task_id: int, new_status: TaskStatus
+    ) -> TaskResponseSchema:
+        """
+        專用方法更新 Task 狀態，並記錄變更。
+        """
+        task = self.db.query(TaskORM).filter(TaskORM.id == task_id).first()
+
+        if not task:
+            self.logger.error(f"Cannot update status: Task ID {task_id} not found.")
+            raise NotFoundError(detail=f"Task ID {task_id} not found.")
+
+        if task.status != new_status:
+            old_status = task.status
+            task.status = new_status
+            self.logger.info(
+                f"Updated Task ID {task_id} status from {old_status} to {new_status}"
+            )
+
+        return TaskResponseSchema.model_validate(task)
+
+    # ----- Delete Methods -----
+    def delete_task(self, task_id: int) -> TaskResponseSchema:
+        task = self.db.query(TaskORM).filter(TaskORM.id == task_id).first()
+
+        if not task:
+            self.logger.error(f"Cannot delete: Task ID {task_id} not found.")
+            raise NotFoundError(detail=f"Task ID {task_id} not found.")
+
+        try:
+            self.db.delete(task)
+            self._remove_job_from_scheduler(task_id=task_id)
+            self.logger.info(f"Deleted Task ID {task_id} from database.")
+
+        except Exception as e:
+            self.logger.error(
+                f"Failed to delete Task ID {task_id} or remove scheduled jobs. Error: {e}"
+            )
+            raise
+
+        return TaskResponseSchema.model_validate(task)
+
+    def _remove_job_from_scheduler(self, task_id: int):
+        """
+        從排程器中移除指定 Task ID 的 Start 和 End Job，並容忍 Job 不存在。
+        """
+        start_job_id = f"task_start_{task_id}"
+        end_job_id = f"task_end_{task_id}"
+
+        for job_id in [start_job_id, end_job_id]:
+            try:
+                # 檢查 Job 是否存在，若存在則移除
+                if self.scheduler.get_job(job_id):
+                    self.scheduler.remove_job(job_id)
+                    self.logger.info(f"Successfully removed job ID {job_id}.")
+
+            except Exception as e:
+                # 這裡應只捕獲 apscheduler 內部錯誤 (如 Job 仍在運行)
+                self.logger.warning(
+                    f"Failed to cleanly remove job ID {job_id} from scheduler. Error: {e}"
+                )
+
+    def add_job_to_scheduler(
+        self,
+        task_id: int,
+    ):
+        """
+        核心寫入和排程邏輯：將單一 Task 實例寫入 DB 並同步到 Scheduler。
+        """
+        task = (
+            self.db.query(TaskORM)
+            .options(joinedload(TaskORM.meeting))
+            .filter(TaskORM.id == task_id)
+            .first()
+        )
+
+        if not task:
+            self.logger.error(f"Cannot schedule: Task ID {task_id} not found.")
+            raise NotFoundError(detail=f"Task ID {task_id} not found.")
+
+        meeting_name = task.meeting.meeting_name
+        start_time = task.start_time
+        end_time = task.end_time
+
+        try:
+            # 1. Start Job
+            self.scheduler.add_job(
+                start_recording,
+                args=[task_id],
+                trigger="date",
+                run_date=start_time,
+                id=f"task_start_{task_id}",
+            )
+
+            # 2. End Job
+            self.scheduler.add_job(
+                end_recording,
+                args=[task],
+                trigger="date",
+                run_date=end_time,
+                id=f"task_end_{task_id}",
+            )
+            self.logger.info(
+                f"Scheduled Task {task_id} for meeting '{meeting_name}' "
+                + f"from {start_time} to {end_time}."
+            )
+
+        except Exception as e:
+            error_msg = f"Failed to schedule Task {task_id} for meeting '{meeting_name}'. Error: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(detail=error_msg)
+
+    def _calculate_execute_time(
+        self, meeting: MeetingORM
+    ) -> List[tuple[datetime, datetime]]:
+        if not meeting.repeat:
+            return [(meeting.start_time, meeting.end_time)]
+
+        all_times = []
+        curr_start = meeting.start_time
+        curr_end = meeting.end_time
+        interval = timedelta(days=meeting.repeat_unit)
+        while curr_start <= meeting.repeat_end_date:
+            all_times.append((curr_start, curr_end))
+            curr_start += interval
+            curr_end += interval
+
+        return all_times
+
+    # ----- Query Methods -----
+    def _get_base_query(self) -> Query[TaskORM]:
+        return self.db.query(TaskORM).options(joinedload(TaskORM.meeting))
