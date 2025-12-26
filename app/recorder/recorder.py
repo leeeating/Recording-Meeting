@@ -1,4 +1,5 @@
 import logging
+import time
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -14,8 +15,8 @@ logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
 
 SCENE_NAME_MAP = {
-    "WEBEX": "Webex_APP",
-    "ZOOM": "Zoom_APP",
+    "WEBEX": "WEBEX_APP",
+    "ZOOM": "ZOOM_APP",
 }
 
 
@@ -39,13 +40,19 @@ def start_recording(task_id: int):
                 )
                 raise NotFoundError(f"找不到 Task {task_id}")
 
-            if not (obs_mgr.launch_obs() and obs_mgr.connect()):
-                # TODO: send email notification
-                logger.error(
-                    "無法啟動或連線到 OBS，取消錄影", extra={"send_email": True}
-                )
-                raise ConnectionError("無法啟動或連線到 OBS")
+            obs_mgr.kill_obs_process()
+            time.sleep(1)
 
+            obs_mgr.launch_obs()
+            time.sleep(3)
+
+            obs_mgr.connect()
+            time.sleep(1)
+
+            logger.debug("模擬錄影中...")
+            obs_mgr.start_recording()
+            time.sleep(10)
+            raise
             meeting_type = task.meeting.meeting_type.upper()
 
             obs_mgr.setup_obs_scene(scene_name=SCENE_NAME_MAP[meeting_type])
@@ -98,9 +105,18 @@ def start_recording(task_id: int):
 
 
 def end_recording(task_id: int):
+    obs_mgr.connect()
+    time.sleep(1)
+
     obs_mgr.stop_recording()
-    obs_mgr._force_stop_obs()
+    time.sleep(1)
+
+    obs_mgr.kill_obs_process()
+    time.sleep(1)
+
     logger.info(f"OBS 錄影已停止，Task {task_id}")
+
+    # TODO: kill meeting app
 
     # ----- status update -----
     with Session(database_engine) as db:
@@ -113,6 +129,7 @@ def end_recording(task_id: int):
                 raise NotFoundError(f"找不到 Task {task_id}")
 
             task.status = TaskStatus.COMPLETED
+            logger.info(f"Task {task_id}錄影成功")
             db.commit()
 
         except Exception as e:
