@@ -9,7 +9,7 @@ import pyperclip
 from pywinauto import Desktop
 
 # 假設你的環境已有此設定
-# from shared.config import config
+from shared.config import config
 from .utils import action
 
 logger = logging.getLogger(__name__)

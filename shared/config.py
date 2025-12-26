@@ -53,6 +53,12 @@ class Config(BaseSettings):
         description="OBS Studio 的工作目錄。",
     )
 
+    # Zoom Configuration
+    ZOOM_APP_PATH: str = Field(
+        default=r"C:\Users\linlab\AppData\Roaming\Zoom\bin\Zoom.exe",
+        description="Zoom的安裝路徑"
+    )
+
     # Webex Configuration
     WEBEX_APP_PATH: str = Field(
         default=r"C:\Users\linlab\AppData\Local\CiscoSparkLauncher\CiscoCollabHost.exe",

@@ -26,7 +26,7 @@ class OBSManager:
                 [str(self.obs_path)],
                 cwd=Path(self.obs_path).resolve().parent,
             )
-        time.sleep(2)
+        # time.sleep(1)
         self._check_mode()
 
     def connect(self, retries=5, timeout=5):
@@ -61,11 +61,13 @@ class OBSManager:
         """
         with action("關閉OBS", logger):
             result = subprocess.run(
-                ["taskkill", "/IM", "obs64.exe", "/T"], capture_output=True, text=True
+                ["taskkill", "/IM", "obs64.exe", "/T"],
+                capture_output=True,
+                text=True,
             )
 
             if result.returncode == 0:
-                logger.debug("[正常] OBS 已成功關閉")
+                logger.debug("[安全]關閉OBS")
                 return
 
             logger.debug(f"溫和關閉失敗 (代碼 {result.returncode})，嘗試強制關閉...")
@@ -74,10 +76,8 @@ class OBSManager:
             # 就會拋出 CalledProcessError，這時 action 就會捕捉到並報錯。
             subprocess.run(
                 ["taskkill", "/F", "/IM", "obs64.exe", "/T"],
-                check=True,
-                capture_output=True,
             )
-            logger.debug("[正常] OBS 已強制關閉")
+            logger.debug("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
     def setup_obs_scene(self, scene_name: str):
         with action(f"配置場景: {scene_name}", logger):

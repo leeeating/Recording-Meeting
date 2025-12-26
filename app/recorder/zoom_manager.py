@@ -1,7 +1,9 @@
 import logging
+import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
+import psutil
 from pywinauto import Desktop
 
 # from shared.config import config
@@ -34,17 +36,6 @@ class ZoomManager:
         Use URL schema to join Zoom meeting. \\
         And handle waiting room if exists. \\
         Wait up to **WAIT_TIMEOUT** seconds. It can setting in env file.
-
-        :param meeting_name: meeting name for logging
-        :type meeting_name: str
-        :param meeting_url: original meeting url
-        :type meeting_url: str | None
-        :param meeting_id: meeting ID
-        :type meeting_id: str | None
-        :param password: meeting password
-        :type password: str | None
-        :return: success status
-        :rtype: bool
         """
         if self.meeting_url is None and (
             self.password is None or self.meeting_id is None
@@ -58,9 +49,11 @@ class ZoomManager:
         with action("ZOOM開啟URL Schemas", logger):
             webbrowser.open(zoom_meeting_url)
 
+        time.sleep(2)
+
         with action("[連線中]等待連線中", logger):
             connect_window = Desktop(backend="uia").window(title_re=".*連線中.*")
-            connect_window.set_focus()
+            # connect_window.set_focus()
             connect_window.wait_not(
                 "exists",
                 timeout=self.WAIT_TIMEOUT,
@@ -78,12 +71,13 @@ class ZoomManager:
                 retry_interval=1,
             )
 
-        self._change_layout_by_uia()
+        time.sleep(3)
 
-    def _change_layout_by_uia(self):
+        self._change_layout_by_desktop()
+
+    def _change_layout_by_desktop(self):
         """
         Use UI Automation to change Zoom layout. \\
-        Don't support MacOS. \\
         Don't need point of each layout button.
         """
 
@@ -94,6 +88,7 @@ class ZoomManager:
 
         with action("[Zoom會議]按下檢視按鈕", logger):
             # detect layout button
+            meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
             btn = meeting_window.child_window(
                 title="檢視",
                 control_type="Button",
@@ -112,6 +107,10 @@ class ZoomManager:
 
         logger.info(f"Successfully changed layout to {self.layout}.")
 
+    # TODO:
+    def _change_layout_by_autogui(self):
+        pass
+
     def _parse_meeting_url(self) -> str:
         """
         Zoom can use url schema to entry meeting. \\
@@ -128,11 +127,15 @@ class ZoomManager:
 
         return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
 
-
-if __name__ == "__main__":
-    zoom_manager = ZoomManager(
-        meeting_name="Test",
-        meeting_url="https://us05web.zoom.us/j/8631054479?pwd=XGui4JAL9Kx6bH8DMFUo9IPOG12YlS.1",
-        layout="演講者",
-    )
-    zoom_manager.join_meeting_and_change_layout()
+    @staticmethod
+    def shutdown():
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                if proc.info["name"] == "Zoom.exe":
+                    logger.debug(
+                        f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})"
+                    )
+                    proc.terminate()
+                    proc.wait()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass

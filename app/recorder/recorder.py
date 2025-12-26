@@ -11,6 +11,8 @@ from app.recorder.obs_manager import OBSManager
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
 
+from .utils import kill_process, action
+
 logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
 
@@ -44,7 +46,7 @@ def start_recording(task_id: int):
             time.sleep(1)
 
             obs_mgr.launch_obs()
-            time.sleep(3)
+            time.sleep(1)
 
             obs_mgr.connect()
             time.sleep(1)
@@ -54,7 +56,7 @@ def start_recording(task_id: int):
             obs_mgr.setup_obs_scene(scene_name=SCENE_NAME_MAP[meeting_type])
             obs_mgr.start_recording()
             # uncomment for testing launch and kill obs
-            raise
+            # raise
 
             # ----- status update -----
             task.status = TaskStatus.RECORDING
@@ -94,81 +96,57 @@ def start_recording(task_id: int):
             if task:
                 task.status = TaskStatus.FAILED
                 db.commit()
-            # comment out for testing mock meeting 
-            # raise e
+            raise e
 
 
 def end_recording(task_id: int):
-    obs_mgr.connect()
-    time.sleep(1)
-
-    obs_mgr.stop_recording()
-    time.sleep(1)
-
-    obs_mgr.kill_obs_process()
-    time.sleep(1)
-
-    logger.info(f"OBS 錄影已停止，Task {task_id}")
-
-    # TODO: kill meeting app
-
-    # ----- status update -----
     with Session(database_engine) as db:
         try:
-            task = db.query(TaskORM).get(task_id)
+            task = (
+                db.query(TaskORM)
+                .options(joinedload(TaskORM.meeting))
+                .filter(TaskORM.id == task_id)
+                .first()
+            )
+
             if not task:
-                logger.error(
-                    f"結束錄影時，找不到 Task {task_id}", extra={"send_email": True}
-                )
+                logger.error(f"結束錄影時，找不到 Task {task_id}", extra={"send_email": True})
                 raise NotFoundError(f"找不到 Task {task_id}")
 
+            obs_mgr.connect()
+            time.sleep(1)
+            obs_mgr.stop_recording()
+            time.sleep(1)
+            obs_mgr.kill_obs_process()
+            time.sleep(1)
+            logger.info(f"OBS 錄影已停止，Task {task_id}")
+
+            meeting_type = task.meeting.meeting_type.upper()
+            
+            PROCESS_MAP = {
+                "ZOOM": "Zoom.exe",
+                "WEBEX": "CiscoCollabHost.exe"
+            }
+
+            p_name = PROCESS_MAP.get(meeting_type)
+            
+            with action(f"關閉 {meeting_type} 會議程式", logger):
+                if p_name:
+                    kill_process(p_name, logger)
+                    logger.info(f"已要求關閉進程: {p_name}")
+                else:
+                    logger.warning(f"未定義的會議類型 {meeting_type}，無法自動關閉進程")
+
+            # 4. 更新任務狀態為完成
             task.status = TaskStatus.COMPLETED
-            logger.info(f"Task {task_id}錄影成功")
             db.commit()
+            logger.info(f"Task {task_id} 錄影成功並已完整關閉相關程式")
 
         except Exception as e:
             db.rollback()
             logger.error(
-                f"Update task status failed (ID: {task_id}): {str(e)}", exc_info=True
+                f"執行 end_recording 失敗 (ID: {task_id}): {str(e)}", 
+                exc_info=True,
+                extra={"send_email": True}
             )
-
-
-if __name__ == "__main__":
-    from datetime import datetime
-
-    from app.models import MeetingORM
-
-    with Session(database_engine) as db:
-        test_task = db.query(TaskORM).filter(TaskORM.id == 999).first()
-
-        if test_task:
-            print("detecting test task")
-            db.delete(test_task)
-            db.commit()
-
-        test_meeting = MeetingORM(
-            id=999,
-            meeting_name="test",
-            meeting_type="ZOOM",
-            meeting_url="https://us05web.zoom.us/j/8631054479?pwd=XGui4JAL9Kx6bH8DMFUo9IPOG12YlS.1",
-            meeting_layout="grid",
-            creator_name="LET",
-            creator_email="test",
-            start_time=datetime.now(),
-            end_time=datetime.now(),
-            repaet=False,
-        )
-        db.add(test_meeting)
-        db.flush()
-
-        test_task = TaskORM(
-            meeting_id=test_meeting.id,
-            status=TaskStatus.UPCOMING,
-            start_time=test_meeting.start_time,
-            end_time=test_meeting.end_time,
-        )
-        db.add(test_task)
-        db.commit()
-
-        print("--- 開始測試 start_recording ---")
-        start_recording(task_id=999)
+            raise e

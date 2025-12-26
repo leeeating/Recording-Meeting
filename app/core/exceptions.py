@@ -22,6 +22,8 @@ class NotFoundError(BaseError):
 class SchedulingError(BaseError):
     pass
 
+class ActionError(BaseError):
+    pass
 
 def register_exception_handlers(app: FastAPI):
     @app.exception_handler(NotFoundError)
