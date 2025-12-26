@@ -92,6 +92,7 @@ def start_recording(task_id: int):
             if task:
                 task.status = TaskStatus.FAILED
                 db.commit()
+            raise e
 
 
 def end_recording(task_id: int):
