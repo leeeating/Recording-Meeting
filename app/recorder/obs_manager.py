@@ -22,11 +22,11 @@ class OBSManager:
 
     def launch_obs(self):
         with action("啟動 OBS", logger):
-            subprocess.run(
+            subprocess.Popen(
                 [str(self.obs_path)],
                 cwd=Path(self.obs_path).resolve().parent,
             )
-
+        time.sleep(2)
         self._check_mode()
 
     def connect(self, retries=5, timeout=5):
@@ -54,30 +54,36 @@ class OBSManager:
         即便 OBS 未運行，此指令也會執行並由 stderr 吞掉報錯，確保冪等性。
 
         Test Case:
-        [] A. OBS開啟，沒在錄影：必須確定websocket沒在連線
-        [] B. OBS開啟，錄影中：
+        [V] A. OBS開啟，沒在錄影
+        [V] B. OBS開啟，錄影中
         [V] C. OBS完全關閉
 
         """
         with action("關閉OBS", logger):
             result = subprocess.run(
-                ["taskkill", "/IM", "obs64.exe", "/T"], capture_output=True
+                ["taskkill", "/IM", "obs64.exe", "/T"], capture_output=True, text=True
             )
 
             if result.returncode == 0:
-                logger.debug("[正常]OBS關閉")
+                logger.debug("[正常] OBS 已成功關閉")
+                return
 
-            else:
-                # 這裡加 check=True，如果連強制關閉都出錯(如沒權限)，就會拋出 Exception 給 action 處理
-                subprocess.run(["taskkill", "/F", "/IM", "obs64.exe", "/T"], check=True)
-                logger.debug("[異常]OBS強制關閉，下次開啟時會跳出提示框")
+            logger.debug(f"溫和關閉失敗 (代碼 {result.returncode})，嘗試強制關閉...")
+
+            # 這裡使用 check=True。如果連「強制關閉」都失敗（例如權限不足），
+            # 就會拋出 CalledProcessError，這時 action 就會捕捉到並報錯。
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "obs64.exe", "/T"],
+                check=True,
+                capture_output=True,
+            )
+            logger.debug("[正常] OBS 已強制關閉")
 
     def setup_obs_scene(self, scene_name: str):
         with action(f"配置場景: {scene_name}", logger):
             self.check_connect()
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
-            time.sleep(2)
 
     def disconnect(self):
         if self.client:
