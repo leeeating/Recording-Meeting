@@ -19,11 +19,6 @@ class CustomBaseModel(BaseModel):
 
 # ----- Meeting Schemas -----
 class MeetingCreateSchema(CustomBaseModel):
-    """
-    新的主輸入契約：用於創建 Meeting，並包含所有排程規則。
-    """
-
-    # 核心會議資訊 (不變)
     meeting_name: str = Field(..., max_length=100, description="會議名稱")
     meeting_type: MeetingType = Field(..., description="會議類型")
     meeting_url: Optional[str] = Field(None, max_length=200, description="會議連結")
@@ -34,13 +29,13 @@ class MeetingCreateSchema(CustomBaseModel):
     creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
     creator_email: str = Field(..., max_length=100, description="會議建立者 Email")
 
-    # 排程時間與規則 (從 Task 移入)
     start_time: datetime = Field(..., description="排程開始時間")
     end_time: datetime = Field(..., description="排程結束時間")
     repeat: bool = Field(False, description="是否重複排程")
     repeat_unit: Optional[int] = Field(None, description="重複的天數")
     repeat_end_date: Optional[datetime] = Field(None, description="重複結束日期")
 
+    # add timezone to datetime
     @field_validator("start_time", "end_time", "repeat_end_date", mode="before")
     @classmethod
     def set_datetime_timezone(cls, v: Any) -> datetime:
@@ -57,9 +52,10 @@ class MeetingCreateSchema(CustomBaseModel):
         else:
             return dt.astimezone(TAIPEI_TZ)
 
+    # Transform input to interger
     @field_validator("repeat_unit", mode="before")
     @classmethod
-    def coerce_int(cls, v: Any) -> Optional[int]:
+    def transform_int(cls, v: Any) -> Optional[int]:
         if v is None or v == "":
             return None
 
@@ -69,6 +65,7 @@ class MeetingCreateSchema(CustomBaseModel):
         except (ValueError, TypeError):
             raise ValueError("重複天數必須是有效的數字格式")
 
+    # Ensure end day formation
     @field_validator("repeat_end_date", mode="after")
     @classmethod
     def force_to_end_of_day(cls, v: Optional[datetime]) -> Optional[datetime]:
@@ -80,6 +77,7 @@ class MeetingCreateSchema(CustomBaseModel):
 
         return v.replace(hour=23, minute=59, second=59, microsecond=0)
 
+    # Ensure input information
     @model_validator(mode="after")
     def validate_meeting_rules(self) -> Self:
         has_url = bool(self.meeting_url)
@@ -97,6 +95,7 @@ class MeetingCreateSchema(CustomBaseModel):
 
         return self
 
+    # Ensure repeat information
     @model_validator(mode="after")
     def validate_repeat_rules(self) -> Self:
         if self.repeat:
@@ -108,6 +107,7 @@ class MeetingCreateSchema(CustomBaseModel):
                 raise ValueError("'repeat_end_date' 必須晚於 'start_time'。")
         return self
 
+    # Ensure the setting of time
     @model_validator(mode="after")
     def validate_start_end_time(self) -> Self:
         if datetime.now(TAIPEI_TZ) < self.start_time < self.end_time:
@@ -120,8 +120,6 @@ class MeetingResponseSchema(MeetingCreateSchema):
     id: int = Field(..., description="會議主鍵 ID")
     created_at: datetime = Field(..., description="會議創建時間")
     updated_at: datetime = Field(..., description="會議最後更新時間")
-    # 這裡的 List 類型必須引用 TaskResponseSchema
-    # tasks: List["TaskResponseSchema"] = Field(..., description="關聯的排程任務列表")
 
 
 class MeetingQuerySchema(BaseModel):
