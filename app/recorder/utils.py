@@ -13,5 +13,5 @@ def action(action_name: str, logger: logging.Logger):
         logger.info(f"成功執行操作: {action_name}")
 
     except Exception as e:
-        logger.error(f"UI 操作失敗 [{action_name}]: {e}")
+        logger.error(f"操作失敗 [{action_name}]: {e}")
         raise

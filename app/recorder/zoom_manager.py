@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ZoomManager:
-    WAIT_TIMEOUT = 5  # seconds
+    WAIT_TIMEOUT = 30  # seconds
 
     def __init__(
         self,

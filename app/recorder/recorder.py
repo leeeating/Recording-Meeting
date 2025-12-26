@@ -49,12 +49,8 @@ def start_recording(task_id: int):
             obs_mgr.connect()
             time.sleep(1)
 
-            logger.debug("模擬錄影中...")
-            obs_mgr.start_recording()
-            time.sleep(10)
-            raise
+            # get default scene and recording
             meeting_type = task.meeting.meeting_type.upper()
-
             obs_mgr.setup_obs_scene(scene_name=SCENE_NAME_MAP[meeting_type])
             obs_mgr.start_recording()
 
@@ -64,18 +60,12 @@ def start_recording(task_id: int):
             logger.info(f"OBS 正常啟動且錄影中，Task {task_id}")
             # -------------------------
 
-            meeting_name = task.meeting.meeting_name
-            meeting_url = task.meeting.meeting_url
-            meeting_id = task.meeting.room_id
-            meeting_password = task.meeting.meeting_password
-            layout = task.meeting.meeting_layout.upper()
-
             mgr_dict = {
-                "meeting_name": meeting_name,
-                "meeting_url": meeting_url,
-                "meeting_id": meeting_id,
-                "password": meeting_password,
-                "layout": layout,
+                "meeting_name": task.meeting.meeting_name,
+                "meeting_url": task.meeting.meeting_url,
+                "meeting_id": task.meeting.room_id,
+                "password": task.meeting.meeting_password,
+                "layout": task.meeting.meeting_layout.upper(),
             }
 
             meeting_mgr = None
