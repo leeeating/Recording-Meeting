@@ -11,9 +11,9 @@ class MeetingType(str, Enum):
 @final
 class LayoutType(str, Enum):
     # webex
-    GRID = "網格"
-    STACKED = "堆疊"
-    SIDE_BY_SIDE = "並排"
+    GRID = "GRID"
+    STACKED = "STACKED"
+    SIDE_BY_SIDE = "SIDE_BY_SIDE"
     # zoom
     SPEAKER = "演講者"
     GALLERY = "圖庫"

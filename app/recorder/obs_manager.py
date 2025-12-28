@@ -68,6 +68,24 @@ class OBSManager:
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
 
+    def setup_obs_window(self):
+        """
+        確保每次OBS錄製的視窗，Webex的視窗名會隨者host name更改。\\
+        先找到視窗名在重新設定錄製視窗
+        """
+        target_name = self._get_target_window_name()
+        if target_name:
+            self.client.set_input_settings(
+                name="webex.exe",
+                settings={"window": target_name},
+                overlay=True,
+            )
+
+        else:
+            e = "webex視窗設定失敗"
+            logger.error(e)
+            raise Exception(e)
+
     def disconnect(self):
         if self.client:
             with action("斷開 OBS 連線", logger):
@@ -128,3 +146,21 @@ class OBSManager:
 
             except Exception as e:
                 logger.debug(f"未發現彈窗或點擊失敗 (可忽略): {e}")
+
+    @staticmethod
+    def _get_target_window_name():
+        windows = Desktop(backend="uia").windows()
+        for win in windows:
+            try:
+                title = win.window_text()
+                if "meeting" in title.lower() or "Webex" in title:
+                    if title != "Webex":
+                        class_name = win.class_name()
+                        executable = "CiscoCollabHost.exe"
+
+                        # 拼湊 OBS 5.x 要求的 window 字串格式
+                        obs_window_str = f"{title}:{class_name}:{executable}"
+                        return obs_window_str
+            except Exception:
+                continue
+        return None

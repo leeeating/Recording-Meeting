@@ -21,6 +21,11 @@ SCENE_NAME_MAP = {
     "ZOOM": "ZOOM_APP",
 }
 
+PROCESS_MAP = {
+    "ZOOM": "Zoom.exe",
+    "WEBEX": "CiscoCollabHost.exe",
+}
+
 
 def start_recording(task_id: int):
     logger.debug(f"收到啟動指令，準備執行 Task ID: {task_id}")
@@ -53,7 +58,8 @@ def start_recording(task_id: int):
 
             # get default scene and recording
             meeting_type = task.meeting.meeting_type.upper()
-            obs_mgr.setup_obs_scene(scene_name=SCENE_NAME_MAP[meeting_type])
+            scene_name = SCENE_NAME_MAP[meeting_type]
+            obs_mgr.setup_obs_scene(scene_name=scene_name)
             obs_mgr.start_recording()
             # uncomment for testing launch and kill obs
             # raise
@@ -81,10 +87,16 @@ def start_recording(task_id: int):
 
             else:
                 # TODO: send email
-                logger.error("OBS正常啟動，但會議軟體啟動失敗", extra={"send_email": True})
+                logger.error(
+                    "OBS正常啟動，但會議軟體啟動失敗", extra={"send_email": True}
+                )
                 raise ValueError("Meeting Manager is None")
 
             meeting_mgr.join_meeting_and_change_layout()
+
+
+            if meeting_type == "WEBEX":
+                obs_mgr.setup_obs_window()
 
         except Exception as e:
             db.rollback()
@@ -127,7 +139,6 @@ def end_recording(task_id: int):
             logger.info(f"OBS 錄影已停止，Task {task_id}")
 
             meeting_type = task.meeting.meeting_type.upper()
-            PROCESS_MAP = {"ZOOM": "Zoom.exe", "WEBEX": "CiscoCollabHost.exe"}
 
             kill_meeting_process(PROCESS_MAP.get(meeting_type))
 

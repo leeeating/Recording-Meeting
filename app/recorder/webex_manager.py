@@ -59,7 +59,7 @@ class WebexManager:
         with action("啟動Webex應用程式", logger):
             subprocess.Popen([config.WEBEX_APP_PATH])
 
-        time.sleep(2)
+        time.sleep(5)
 
         with action("按下[加入會議]按鈕，進入輸入頁面", logger):
             main_window = Desktop(backend="uia").window(
