@@ -33,8 +33,7 @@ class Config(BaseSettings):
         description="應用程式的日誌等級。",
     )
 
-    # OBS Configuration
-
+    # Path Configuration
     OBS_PATH: str = Field(
         default=(
             r"C:\Program Files\obs-studio\bin\64bit\obs64.exe"
@@ -53,18 +52,17 @@ class Config(BaseSettings):
         description="OBS Studio 的工作目錄。",
     )
 
-    # Zoom Configuration
     ZOOM_APP_PATH: str = Field(
         default=r"C:\Users\linlab\AppData\Roaming\Zoom\bin\Zoom.exe",
         description="Zoom的安裝路徑"
     )
 
-    # Webex Configuration
     WEBEX_APP_PATH: str = Field(
         default=r"C:\Users\linlab\AppData\Local\CiscoSparkLauncher\CiscoCollabHost.exe",
         description="Webex 的安裝路徑。",
     )
 
+    # Webex UI Points
     WEBEX_GRID_POINT: str = Field(
         default="",
         description="網格按鈕的四邊",
@@ -92,7 +90,7 @@ class Config(BaseSettings):
     )
 
     # Timeout Configuration
-    MEETING_WAIT_TIMEOUT: int = Field(
+    MEETING_WAIT_TIMEOUT_IN_SECOND: int = Field(
         default=300,
         description="等待會議開始的超時時間（秒）。",
     )
