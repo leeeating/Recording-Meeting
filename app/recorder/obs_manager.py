@@ -8,7 +8,7 @@ from pywinauto import Desktop
 
 from shared.config import config
 
-from .utils import action
+from .utils import action, kill_process
 
 logger = logging.getLogger(__name__)
 
@@ -60,24 +60,7 @@ class OBSManager:
 
         """
         with action("關閉OBS", logger):
-            result = subprocess.run(
-                ["taskkill", "/IM", "obs64.exe", "/T"],
-                capture_output=True,
-                text=True,
-            )
-
-            if result.returncode == 0:
-                logger.debug("[安全]關閉OBS")
-                return
-
-            logger.debug(f"溫和關閉失敗 (代碼 {result.returncode})，嘗試強制關閉...")
-
-            # 這裡使用 check=True。如果連「強制關閉」都失敗（例如權限不足），
-            # 就會拋出 CalledProcessError，這時 action 就會捕捉到並報錯。
-            subprocess.run(
-                ["taskkill", "/F", "/IM", "obs64.exe", "/T"],
-            )
-            logger.debug("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
+            kill_process(Pname="obs64.exe", logger=logger)
 
     def setup_obs_scene(self, scene_name: str):
         with action(f"配置場景: {scene_name}", logger):
@@ -89,6 +72,9 @@ class OBSManager:
         if self.client:
             with action("斷開 OBS 連線", logger):
                 self.client.disconnect()
+
+        else:
+            logger.warning("OBS client isn't detecting. Can Not disconnect websocket")
 
     def start_recording(self):
         with action("啟動錄影", logger):

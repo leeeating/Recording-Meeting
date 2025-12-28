@@ -11,7 +11,7 @@ from app.recorder.obs_manager import OBSManager
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
 
-from .utils import kill_process, action
+from .utils import action, kill_process
 
 logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
@@ -61,10 +61,10 @@ def start_recording(task_id: int):
             # ----- status update -----
             task.status = TaskStatus.RECORDING
             db.commit()
-            logger.info(f"OBS 正常啟動且錄影中，Task {task_id}")
+            logger.info("OBS 正常啟動且錄影中")
             # -------------------------
 
-            mgr_dict = {
+            meeting_info = {
                 "meeting_name": task.meeting.meeting_name,
                 "meeting_url": task.meeting.meeting_url,
                 "meeting_id": task.meeting.room_id,
@@ -74,14 +74,14 @@ def start_recording(task_id: int):
 
             meeting_mgr = None
             if meeting_type == "ZOOM":
-                meeting_mgr = ZoomManager(**mgr_dict)
+                meeting_mgr = ZoomManager(**meeting_info)
 
             elif meeting_type == "WEBEX":
-                meeting_mgr = WebexManager(**mgr_dict)
+                meeting_mgr = WebexManager(**meeting_info)
 
             else:
                 # TODO: send email
-                logger.error("Meeting Manager is None", extra={"send_email": True})
+                logger.error("OBS正常啟動，但會議軟體啟動失敗", extra={"send_email": True})
                 raise ValueError("Meeting Manager is None")
 
             meeting_mgr.join_meeting_and_change_layout()
@@ -110,32 +110,26 @@ def end_recording(task_id: int):
             )
 
             if not task:
-                logger.error(f"結束錄影時，找不到 Task {task_id}", extra={"send_email": True})
+                logger.error(
+                    f"結束錄影時，找不到 Task {task_id}", extra={"send_email": True}
+                )
                 raise NotFoundError(f"找不到 Task {task_id}")
 
             obs_mgr.connect()
             time.sleep(1)
+
             obs_mgr.stop_recording()
             time.sleep(1)
+
             obs_mgr.kill_obs_process()
             time.sleep(1)
+
             logger.info(f"OBS 錄影已停止，Task {task_id}")
 
             meeting_type = task.meeting.meeting_type.upper()
-            
-            PROCESS_MAP = {
-                "ZOOM": "Zoom.exe",
-                "WEBEX": "CiscoCollabHost.exe"
-            }
+            PROCESS_MAP = {"ZOOM": "Zoom.exe", "WEBEX": "CiscoCollabHost.exe"}
 
-            p_name = PROCESS_MAP.get(meeting_type)
-            
-            with action(f"關閉 {meeting_type} 會議程式", logger):
-                if p_name:
-                    kill_process(p_name, logger)
-                    logger.info(f"已要求關閉進程: {p_name}")
-                else:
-                    logger.warning(f"未定義的會議類型 {meeting_type}，無法自動關閉進程")
+            kill_meeting_process(PROCESS_MAP.get(meeting_type))
 
             # 4. 更新任務狀態為完成
             task.status = TaskStatus.COMPLETED
@@ -145,8 +139,18 @@ def end_recording(task_id: int):
         except Exception as e:
             db.rollback()
             logger.error(
-                f"執行 end_recording 失敗 (ID: {task_id}): {str(e)}", 
+                f"執行 end_recording 失敗 (ID: {task_id}): {str(e)}",
                 exc_info=True,
-                extra={"send_email": True}
+                extra={"send_email": True},
             )
             raise e
+
+
+def kill_meeting_process(meeting_type: str | None):
+    if meeting_type is None:
+        logger.warning("Invalid meeting type. Must be either 'ZOOM' or 'WEBEX'.")
+        return
+
+    with action(f"關閉{meeting_type}", logger):
+        Pname = "Zoom.exe" if meeting_type == "ZOOM" else "CiscoCollabHost.exe"
+        kill_process(Pname, logger)
