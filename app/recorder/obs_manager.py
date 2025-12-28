@@ -75,16 +75,14 @@ class OBSManager:
         """
         target_name = self._get_target_window_name()
         if target_name:
-            self.client.set_input_settings(
-                name="webex.exe",
-                settings={"window": target_name},
-                overlay=True,
-            )
-
+            with action("更改obs中的錄製視窗", logger):
+                self.client.set_input_settings(
+                    name="webex.exe",
+                    settings={"window": target_name},
+                    overlay=True,
+                )
         else:
-            e = "webex視窗設定失敗"
-            logger.error(e)
-            raise Exception(e)
+            logger.warning("找不到webex會議視窗，可能錄到其他視窗")
 
     def disconnect(self):
         if self.client:
@@ -92,7 +90,7 @@ class OBSManager:
                 self.client.disconnect()
 
         else:
-            logger.warning("OBS client isn't detecting. Can Not disconnect websocket")
+            logger.warning("OBS client isn't detecting. Can Not disconnect obs websocket")
 
     def start_recording(self):
         with action("啟動錄影", logger):
