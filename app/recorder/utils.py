@@ -16,7 +16,7 @@ def copy_paste(info: str):
     time.sleep(1)
 
 
-def kill_process(Pname: str, logger: logging.Logger):
+def kill_process(Pname: str | None, logger: logging.Logger):
     """
     這是非常重要的方法，可以保證下次視窗正常被偵測。
     """
@@ -26,7 +26,7 @@ def kill_process(Pname: str, logger: logging.Logger):
                 f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})"
             )
             proc.terminate()
-            proc.wait()
+            proc.wait(10)
 
 
 @contextmanager

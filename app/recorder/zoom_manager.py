@@ -3,6 +3,7 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
+import psutil
 from pywinauto import Desktop
 
 # from shared.config import config
@@ -125,3 +126,16 @@ class ZoomManager:
             password = query_params.get("pwd", [None])[0]
 
         return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
+
+    @staticmethod
+    def shutdown():
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                if proc.info["name"] == "Zoom.exe":
+                    logger.debug(
+                        f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})"
+                    )
+                    proc.terminate()
+                    proc.wait()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass

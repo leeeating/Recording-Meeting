@@ -48,19 +48,29 @@ class OBSManager:
 
             raise ConnectionError("連線 OBS 失敗")
 
-    def kill_obs_process(self):
-        """
-        強制停止 OBS 進程。
-        即便 OBS 未運行，此指令也會執行並由 stderr 吞掉報錯，確保冪等性。
-
-        Test Case:
-        [V] A. OBS開啟，沒在錄影
-        [V] B. OBS開啟，錄影中
-        [V] C. OBS完全關閉
-
-        """
+    def kill_obs_process_by_psutil(self):
+        self.disconnect()
         with action("關閉OBS", logger):
             kill_process(Pname="obs64.exe", logger=logger)
+
+    def kill_obs_process_by_taskkill(self):
+        with action("關閉OBS", logger):
+            result = subprocess.run(
+                ["taskkill", "/IM", "obs64.exe", "/T"],
+                capture_output=True,
+                text=True,
+            )
+
+            if result.returncode == 0:
+                logger.debug("[安全]關閉OBS")
+                return
+
+            logger.debug(f"溫和關閉失敗 (代碼 {result.returncode})，嘗試強制關閉...")
+
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "obs64.exe", "/T"],
+            )
+            logger.debug("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
     def setup_obs_scene(self, scene_name: str):
         with action(f"配置場景: {scene_name}", logger):
@@ -90,7 +100,9 @@ class OBSManager:
                 self.client.disconnect()
 
         else:
-            logger.warning("OBS client isn't detecting. Can Not disconnect obs websocket")
+            logger.warning(
+                "OBS client isn't detecting. Can Not disconnect obs websocket"
+            )
 
     def start_recording(self):
         with action("啟動錄影", logger):
