@@ -117,7 +117,9 @@ class WebexManager:
         """
         # time.sleep(5)
         with action("點擊[版面配置]按鈕", logger):
-            meeting_window = Desktop(backend="uia").window(title_re=".*meeting.*")
+            meeting_window = Desktop(backend="uia").window(
+                title_re=".*(meeting|Personal Room).*"
+            )
             meeting_window.set_focus()
             meeting_window.maximize()
             btn = meeting_window.child_window(
