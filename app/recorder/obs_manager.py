@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import obsws_python as obs
+import psutil
 from pywinauto import Desktop
 
 from shared.config import config
@@ -14,13 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 class OBSManager:
+    PROCESS_NAME = "obs64.exe"
+
     def __init__(self):
-        # self.client = None
         self.obs_path = config.OBS_PATH
         self.obs_cwd = config.OBS_CWD
         self.port = 4455
 
     def launch_obs(self):
+        """
+        不確定使用舊的process連線websocket會不會出錯
+        """
+        if self._check_exist():
+            return
+
         with action("啟動 OBS", logger):
             subprocess.Popen(
                 [str(self.obs_path)],
@@ -38,9 +46,9 @@ class OBSManager:
                         port=self.port,
                         timeout=timeout,
                     )
-                    self.client.get_version()
-                    logger.debug(f"第{n + 1}次連線成功")
-                    return
+                    if self.check_connect():
+                        logger.debug(f"第{n + 1}次連線成功")
+                        return
 
                 except Exception:
                     logger.debug(f"第{n + 1}次連線失敗")
@@ -49,7 +57,9 @@ class OBSManager:
             raise ConnectionError("連線 OBS 失敗")
 
     def kill_obs_process_by_psutil(self):
-        self.disconnect()
+        """
+        這個方法會讓OBS啟動時跳出，安全模式的提示框，不建議使用
+        """
         with action("關閉OBS", logger):
             kill_process(Pname="obs64.exe", logger=logger)
 
@@ -66,11 +76,11 @@ class OBSManager:
                 return
 
             logger.debug(f"溫和關閉失敗 (代碼 {result.returncode})，嘗試強制關閉...")
-
+            # !!! 如果強制關閉OBS，高機率導致下次錄影出錯 !!!
             subprocess.run(
                 ["taskkill", "/F", "/IM", "obs64.exe", "/T"],
             )
-            logger.debug("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
+            logger.warning("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
     def setup_obs_scene(self, scene_name: str):
         with action(f"配置場景: {scene_name}", logger):
@@ -80,7 +90,8 @@ class OBSManager:
 
     def setup_obs_window(self):
         """
-        確保每次OBS錄製的視窗，Webex的視窗名會隨者host name更改。\\
+        確保每次OBS錄製的視窗。 \\
+        Webex的視窗名會隨者host name更改。\\
         先找到視窗名在重新設定錄製視窗
         """
         target_name = self._get_target_window_name()
@@ -174,3 +185,8 @@ class OBSManager:
             except Exception:
                 continue
         return None
+
+    def _check_exist(self):
+        for proc in psutil.process_iter(["name"]):
+            if proc.info["name"] == self.PROCESS_NAME:
+                return True

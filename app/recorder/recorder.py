@@ -62,6 +62,7 @@ def start_recording(task_id: int):
             scene_name = SCENE_NAME_MAP[meeting_type]
             obs_mgr.setup_obs_scene(scene_name=scene_name)
             # obs_mgr.start_recording()
+
             # uncomment for testing launch and kill obs
             # raise
 
@@ -140,8 +141,8 @@ def end_recording(task_id: int):
 
             meeting_type = task.meeting.meeting_type.upper()
 
-            # kill_meeting_process(meeting_type)
-            ZoomManager.shutdown()
+            kill_meeting_process(meeting_type)
+            # ZoomManager.shutdown()
 
             # 4. 更新任務狀態為完成
             task.status = TaskStatus.COMPLETED

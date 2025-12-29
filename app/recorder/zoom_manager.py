@@ -3,17 +3,18 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
-import psutil
 from pywinauto import Desktop
 
-# from shared.config import config
+from shared.config import config
+
 from .utils import action
 
 logger = logging.getLogger(__name__)
 
 
 class ZoomManager:
-    WAIT_TIMEOUT = 30  # seconds
+    WAIT_TIMEOUT = config.MEETING_WAIT_TIMEOUT_IN_SECOND
+    WAIT_TIMEOUT = 30
 
     def __init__(
         self,
@@ -79,6 +80,7 @@ class ZoomManager:
         """
         Use UI Automation to change Zoom layout. \\
         Don't need point of each layout button.
+        我嘗試下來，這步驟的成功與否應該會依賴OBS開啟時是否有安全模式的提示框
         """
 
         with action("[Zoom會議]Zoom視窗最大化", logger):
@@ -126,16 +128,3 @@ class ZoomManager:
             password = query_params.get("pwd", [None])[0]
 
         return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
-
-    @staticmethod
-    def shutdown():
-        for proc in psutil.process_iter(["pid", "name"]):
-            try:
-                if proc.info["name"] == "Zoom.exe":
-                    logger.debug(
-                        f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})"
-                    )
-                    proc.terminate()
-                    proc.wait()
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
