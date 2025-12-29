@@ -9,7 +9,6 @@ from app.models.schemas import (
 )
 from app.controllers.dependencies import get_meeting_service
 
-# 建議將 prefix 改為空或配合 main.py，這裡維持你的單數 /meeting
 router = APIRouter(prefix="/meeting", tags=["Meetings"])
 
 
