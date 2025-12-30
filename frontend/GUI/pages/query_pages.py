@@ -1,9 +1,12 @@
+from datetime import datetime
+from typing import Tuple, Type, TypeVar
+
+from pydantic import ValidationError
 from PyQt6.QtCore import QDateTime, Qt
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDateEdit,
+    QDateTimeEdit,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -13,10 +16,21 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
+
+# 假設這些是從您的專案路徑匯入的
+from app.models.schemas import MeetingCreateSchema
+from frontend.GUI.config import MEETING_LAYOUT_OPTIONS
+from frontend.GUI.events import BUS
+from frontend.network import ApiClient, ApiWorker
+
+from .custom_widgets import DateTimeInputGroup
+
+T = TypeVar("T", bound=QWidget)
+ALIGNLEFT = Qt.AlignmentFlag.AlignLeft
+DEFAULT_WIDGET_HEIGHT = 30
 
 MOCK_MEETINGS_DATA = {
     "M001": {
@@ -38,10 +52,16 @@ MOCK_MEETINGS_DATA = {
 
 
 class MeetingQueryPage(QWidget):
-    def __init__(self, data_source=MOCK_MEETINGS_DATA):
+    def __init__(
+        self,
+        api_client: ApiClient,
+        data_source=MOCK_MEETINGS_DATA,
+    ):
         super().__init__()
+        self.api_client = api_client
         self.all_data = data_source
         self.active_meeting_id = None
+        self.curr_worker = None
 
         self._create_widgets()
         self._setup_layout()
@@ -49,137 +69,157 @@ class MeetingQueryPage(QWidget):
         self._refresh_list()
 
     def _create_widgets(self):
-        """創建 UI 元件"""
-        # 1. 上方清單
+        """1. 創建 UI 元件，使用與建立頁面相同的輔助方法"""
+        # --- 上方清單 ---
+        self.list_label = QLabel("📅 既有會議清單")
+        self.list_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        self.filter_upcoming_chk = QCheckBox("僅顯示尚未開始的會議")
+        # self.filter_upcoming_chk.setStyleSheet("color: #0078D4; font-weight: bold;")
+
         self.view_list = QListWidget()
-        self.view_list.setFont(QFont("Microsoft JhengHei", 11))
-        self.view_list.setMinimumHeight(150)
+        self.view_list.setMinimumHeight(100)
 
-        # 2. 下方編輯區
-        self.edit_group = QGroupBox("會議詳細資訊編輯")
+        # --- 下方編輯區容器 ---
+        self.edit_group = QGroupBox()
+        self.edit_group.setObjectName("editGroup")
 
-        # 會議名稱 (滿版)
-        self.name_edit = QLineEdit()
-        self.name_edit.setFixedHeight(30)
+        # A. 會議基本資訊 (對應 Schema 欄位名稱)
+        self.meeting_name = self._set_widget_hight(QLineEdit)
+        self.meeting_name.setMinimumWidth(300)
 
-        # 左側欄位
-        self.type_combo = QComboBox()
-        self.type_combo.addItems(["Webex", "Zoom", "Teams"])
-        self.url_edit = QLineEdit()
-        self.room_id_edit = QLineEdit()
-        self.pwd_edit = QLineEdit()
-        self.repeat_chk = QCheckBox("是否重複排程")
-        self.repeat_unit_edit = QLineEdit()
-        self.repeat_end_date = QDateEdit()
+        self.meeting_type = self._set_widget_hight(QComboBox)
+        self.meeting_type.addItems(MEETING_LAYOUT_OPTIONS.keys())
+
+        self.meeting_url = self._set_widget_hight(QLineEdit)
+        self.room_id = self._set_widget_hight(QLineEdit)
+        self.meeting_password = self._set_widget_hight(QLineEdit)
+        self.meeting_layout = self._set_widget_hight(QComboBox)
+
+        # B. 建立者資訊
+        self.creator_name = self._set_widget_hight(QLineEdit)
+        self.creator_email = self._set_widget_hight(QLineEdit)
+
+        # C. 時間元件 (使用自定義 DateTimeInputGroup)
+        self.start_time = DateTimeInputGroup(0)
+        self.end_time = DateTimeInputGroup(1)
+
+        # D. 重複選項
+        self.repeat = QCheckBox()
+        self.repeat_unit = self._set_widget_hight(QLineEdit)
+        self.repeat_end_date = self._set_widget_hight(QDateTimeEdit)
         self.repeat_end_date.setCalendarPopup(True)
+        self.repeat_end_date.setDisplayFormat("yyyy/MM/dd")
 
-        # 右側欄位
-        self.layout_combo = QComboBox()
-        self.layout_combo.addItems(["網格", "堆疊", "側邊欄"])
-        self.creator_edit = QLineEdit()
-        self.email_edit = QLineEdit()
-        self.start_date = QDateEdit()
-        self.start_date.setCalendarPopup(True)
-        self.start_time = QTimeEdit()
-        self.end_date = QDateEdit()
-        self.end_date.setCalendarPopup(True)
-        self.end_time = QTimeEdit()
-
-        # 儲存按鈕
-        self.save_btn = QPushButton("儲存變更")
-        self.save_btn.setFixedHeight(40)
-        self.save_btn.setStyleSheet(
-            "background-color: #0078D4; color: white; font-weight: bold; border-radius: 2px;"
-        )
-
-    def _make_label(self, text):
-        """輔助方法：創建固定寬度且右對齊的標籤"""
-        label = QLabel(text)
-        label.setFixedWidth(100)  # 統一調整標籤寬度
-        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        return label
+        # E. 功能按鈕
+        self.save_button = QPushButton("💾 儲存變更內容")
+        self.save_button.setObjectName("submitButton")
+        self.save_button.setMinimumHeight(40)
 
     def _setup_layout(self):
+        """2. 設置佈局，實現上下分區與雙欄結構"""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        main_layout.addWidget(QLabel("會議清單："))
-        main_layout.addWidget(self.view_list)
+        # 上方：清單區
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(self.list_label)
+        header_layout.addStretch()
+        header_layout.addWidget(self.filter_upcoming_chk)
+        main_layout.addLayout(header_layout)
 
-        # --- 編輯群組內部的佈局 ---
-        edit_v_layout = QVBoxLayout(self.edit_group)
-        edit_v_layout.setContentsMargins(15, 20, 15, 15)
-        edit_v_layout.setSpacing(12)
+        main_layout.addWidget(self.view_list, stretch=1)
 
-        # 1. 滿版的會議名稱列
-        name_row = QHBoxLayout()
-        name_row.addWidget(self._make_label("會議名稱："))
-        name_row.addWidget(self.name_edit)
-        edit_v_layout.addLayout(name_row)
+        # 下方：編輯區內容佈局
+        edit_inner_layout = QVBoxLayout(self.edit_group)
 
-        # 2. 雙欄位主要區域
-        cols_container = QHBoxLayout()
-        cols_container.setSpacing(30)  # 左右兩欄之間的間距
+        # 會議名稱列 (滿版)
+        name_widget, name_layout = self._create_form_block()
+        name_layout.addRow("會議名稱:", self.meeting_name)
+        edit_inner_layout.addWidget(name_widget, alignment=ALIGNLEFT)
 
-        # 左欄 (Left Column)
-        left_form = QFormLayout()
-        left_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        left_form.setHorizontalSpacing(15)
-        left_form.addRow(self._make_label("會議類型："), self.type_combo)
-        left_form.addRow(self._make_label("會議連結："), self.url_edit)
-        left_form.addRow(self._make_label("會議識別 ID："), self.room_id_edit)
-        left_form.addRow(self._make_label("會議密碼："), self.pwd_edit)
-        left_form.addRow(self._make_label(" "), self.repeat_chk)
-        left_form.addRow(self._make_label("重複週期(天)："), self.repeat_unit_edit)
-        left_form.addRow(self._make_label("重複結束日期："), self.repeat_end_date)
+        # 雙欄位容器
+        two_column_container = QWidget()
+        two_column_layout = QHBoxLayout(two_column_container)
+        two_column_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 右欄 (Right Column)
-        right_form = QFormLayout()
-        right_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        right_form.setHorizontalSpacing(15)
-        right_form.addRow(self._make_label("會議佈局："), self.layout_combo)
-        right_form.addRow(self._make_label("建立者名稱："), self.creator_edit)
-        right_form.addRow(self._make_label("建立者 Email："), self.email_edit)
+        # --- 左側欄 ---
+        left_widget, left_layout = self._create_form_block()
+        left_layout.addRow("會議類型:", self.meeting_type)
+        left_layout.addRow("會議連結:", self.meeting_url)
+        left_layout.addRow("會議識別 ID:", self.room_id)
+        left_layout.addRow("會議密碼:", self.meeting_password)
+        left_layout.addRow("是否重複排程:", self.repeat)
+        left_layout.addRow("重複週期(天):", self.repeat_unit)
+        left_layout.addRow("結束日期:", self.repeat_end_date)
 
-        # 起始時間：日期與時間並列
-        start_row = QHBoxLayout()
-        start_row.addWidget(self.start_date)
-        start_row.addWidget(self.start_time)
-        right_form.addRow(self._make_label("起始時間："), start_row)
+        # --- 右側欄 ---
+        right_widget, right_layout = self._create_form_block()
+        right_layout.addRow("會議佈局:", self.meeting_layout)
+        right_layout.addRow("建立者名稱:", self.creator_name)
+        right_layout.addRow("建立者 Email:", self.creator_email)
+        right_layout.addRow("起始時間:", self.start_time)
+        right_layout.addRow("結束時間:", self.end_time)
 
-        # 結束時間：日期與時間並列
-        end_row = QHBoxLayout()
-        end_row.addWidget(self.end_date)
-        end_row.addWidget(self.end_time)
-        right_form.addRow(self._make_label("結束時間："), end_row)
+        two_column_layout.addWidget(left_widget, stretch=1)
+        two_column_layout.addWidget(right_widget, stretch=1)
+        edit_inner_layout.addWidget(two_column_container)
 
-        cols_container.addLayout(left_form)
-        cols_container.addLayout(right_form)
+        # 按鈕列
+        edit_inner_layout.addWidget(
+            self.save_button, alignment=Qt.AlignmentFlag.AlignRight
+        )
 
-        edit_v_layout.addLayout(cols_container)
-
-        # 3. 按鈕區域 (確保按鈕下方有適當邊距)
-        btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(100, 10, 0, 0)  # 讓按鈕對齊右側欄位的起始位置
-        btn_layout.addWidget(self.save_btn)
-        edit_v_layout.addLayout(btn_layout)
-
-        main_layout.addWidget(self.edit_group)
+        main_layout.addWidget(self.edit_group, stretch=0)
 
     def _connect_signals(self):
+        """3. 信號連接"""
         self.view_list.itemClicked.connect(self._on_item_selected)
-        self.save_btn.clicked.connect(self._on_save_clicked)
+        self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
+        self.save_button.clicked.connect(self._on_save_meeting_request)
+        self.filter_upcoming_chk.stateChanged.connect(self._refresh_list)
+
+    # --- 邏輯處理方法 ---
 
     def _refresh_list(self):
+        """更新清單內容，包含時間篩選邏輯"""
         self.view_list.clear()
+        now = datetime.now()
+        only_upcoming = self.filter_upcoming_chk.isChecked()
+
         for m_id, info in self.all_data.items():
-            item = QListWidgetItem(f"📅 {info['meeting_name']}")
+            # 解析會議開始時間
+            try:
+                start_time_str = info.get("start_time", "")
+                # 將 ISO 格式字串轉換為 Python datetime 物件進行比較
+                meeting_start_dt = datetime.fromisoformat(
+                    start_time_str.replace("Z", "+00:00")
+                )
+                # 如果是 UTC 時間，需與本地時間統一 (此處假設 info 為 ISO 格式)
+                meeting_start_dt = meeting_start_dt.replace(tzinfo=None)
+            except Exception:
+                meeting_start_dt = now  # 解析失敗時預設顯示
+
+            # 篩選邏輯：如果勾選「僅顯示未來」，且會議時間早於現在，則跳過
+            if only_upcoming and meeting_start_dt < now:
+                continue
+
+            # 建立清單項目
+            item = QListWidgetItem(f"📅 {info.get('meeting_name', '未命名會議')}")
+            # 可以在文字後方標註狀態
+            if meeting_start_dt < now:
+                item.setText(item.text() + " (已過期)")
+                item.setForeground(Qt.GlobalColor.gray)
+
             item.setData(Qt.ItemDataRole.UserRole, m_id)
             self.view_list.addItem(item)
+
+        # 重新整理時若沒有選中項目，禁用編輯區
         self.edit_group.setEnabled(False)
 
     def _on_item_selected(self, item):
+        """當選取清單項目時，載入資料並轉換格式"""
         m_id = item.data(Qt.ItemDataRole.UserRole)
         data = self.all_data.get(m_id)
         if not data:
@@ -187,30 +227,117 @@ class MeetingQueryPage(QWidget):
 
         self.active_meeting_id = m_id
         self.edit_group.setEnabled(True)
-        self.name_edit.setText(data["meeting_name"])
-        self.type_combo.setCurrentText(data["meeting_type"])
-        self.url_edit.setText(data["meeting_url"])
-        self.room_id_edit.setText(data["room_id"])
-        self.pwd_edit.setText(data["meeting_password"])
-        self.layout_combo.setCurrentText(data["meeting_layout"])
-        self.creator_edit.setText(data["creator_name"])
-        self.email_edit.setText(data["creator_email"])
-        self.repeat_chk.setChecked(data["repeat"].lower() == "true")
-        self.repeat_unit_edit.setText(str(data["repeat_unit"]))
 
-        # 時間載入邏輯
-        start_dt = QDateTime.fromString(data["start_time"], Qt.DateFormat.ISODate)
-        self.start_date.setDate(start_dt.date())
-        self.start_time.setTime(start_dt.time())
-        end_dt = QDateTime.fromString(data["end_time"], Qt.DateFormat.ISODate)
-        self.end_date.setDate(end_dt.date())
-        self.end_time.setTime(end_dt.time())
-        repeat_dt = QDateTime.fromString(data["repeat_end_date"], Qt.DateFormat.ISODate)
-        self.repeat_end_date.setDate(repeat_dt.date())
+        # 載入純文字與選項
+        self.meeting_name.setText(data.get("meeting_name", ""))
+        self.meeting_type.setCurrentText(data.get("meeting_type", ""))
+        self._update_meeting_layout(data.get("meeting_type", ""))
+        self.meeting_layout.setCurrentText(data.get("meeting_layout", ""))
 
-    def _on_save_clicked(self):
-        if not self.active_meeting_id:
+        self.meeting_url.setText(data.get("meeting_url", ""))
+        self.room_id.setText(data.get("room_id", ""))
+        self.meeting_password.setText(data.get("meeting_password", ""))
+        self.creator_name.setText(data.get("creator_name", ""))
+        self.creator_email.setText(data.get("creator_email", ""))
+
+        self.repeat.setChecked(str(data.get("repeat", "")).lower() == "true")
+        self.repeat_unit.setText(str(data.get("repeat_unit", "0")))
+
+        # 處理日期時間 (ISO String -> QDateTime)
+        s_dt = QDateTime.fromString(data["start_time"], Qt.DateFormat.ISODate)
+        self.start_time.set_datetime(s_dt.toPyDateTime())
+
+        e_dt = QDateTime.fromString(data["end_time"], Qt.DateFormat.ISODate)
+        self.end_time.set_datetime(e_dt.toPyDateTime())
+
+        r_dt = QDateTime.fromString(data["repeat_end_date"], Qt.DateFormat.ISODate)
+        self.repeat_end_date.setDateTime(r_dt)
+
+    def _on_save_meeting_request(self):
+        """處理儲存邏輯，包含驗證與 API Worker"""
+        if self.curr_worker and self.curr_worker.isRunning():
             return
-        # 資料寫回邏輯 (略，與前版一致)
-        QMessageBox.information(self, "成功", "會議資料已更新")
+
+        try:
+            # 1. 收集並驗證數據
+            updated_data = self._collect_data_to_schema()
+
+            # 2. 啟動異步 Worker (假設 api_client 有 update_meeting 方法)
+            BUS.update_status.emit(f"🔄 正在更新會議: {self.active_meeting_id}...", 0)
+            self.save_button.setEnabled(False)
+
+            self.curr_worker = ApiWorker(
+                self.api_client.update_meeting, self.active_meeting_id, updated_data
+            )
+            self.curr_worker.success.connect(self._on_api_success)
+            self.curr_worker.error.connect(self._on_api_error)
+            self.curr_worker.start()
+
+        except ValueError as e:
+            BUS.update_status.emit(str(e), 0)
+            QMessageBox.warning(self, "驗證失敗", str(e))
+
+    def _on_api_success(self, result):
+        BUS.update_status.emit("✅ 會議資料更新成功！", 0)
+        self.save_button.setEnabled(True)
+        # 更新本地 Mock Data 以利即時反映在介面
+        # ... 更新 self.all_data 邏輯 ...
         self._refresh_list()
+
+    def _on_api_error(self, error_msg):
+        BUS.update_status.emit(f"❌ 更新失敗: {error_msg}", 0)
+        self.save_button.setEnabled(True)
+
+    # --- 繼承自建立頁面的輔助工具函數 ---
+
+    def _collect_data_to_schema(self) -> MeetingCreateSchema:
+        schema_fields = MeetingCreateSchema.model_fields.keys()
+        data = {}
+        for field_name in schema_fields:
+            widget = getattr(self, field_name, None)
+            if widget is not None:
+                data[field_name] = self._get_widget_value(widget)
+        try:
+            return MeetingCreateSchema.model_validate(data)
+        except ValidationError as e:
+            error_messages = "".join([f"{err['loc'][0]}," for err in e.errors()])
+            raise ValueError(f"欄位格式錯誤：{error_messages}")
+
+    def _get_widget_value(self, widget):
+        if isinstance(widget, QLineEdit):
+            return widget.text().strip() or None
+        if isinstance(widget, QComboBox):
+            return widget.currentText()
+        if isinstance(widget, QCheckBox):
+            return widget.isChecked()
+        if isinstance(widget, QDateTimeEdit):
+            return widget.dateTime().toPyDateTime()
+        if isinstance(widget, DateTimeInputGroup):
+            return widget.get_datetime()
+        return None
+
+    def _create_form_block(self, VSpace: int = 15) -> Tuple[QWidget, QFormLayout]:
+        form_widget = QWidget()
+        form_layout = QFormLayout(form_widget)
+        form_layout.setVerticalSpacing(VSpace)
+        form_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint
+        )
+        return form_widget, form_layout
+
+    def _set_widget_hight(
+        self, WidgetClass: Type[T], height: int = DEFAULT_WIDGET_HEIGHT
+    ) -> T:
+        widget = WidgetClass()
+        widget.setMinimumHeight(height)
+        return widget
+
+    def _update_meeting_layout(self, selected_type: str):
+        layout_options = MEETING_LAYOUT_OPTIONS.get(selected_type, [])
+        self.meeting_layout.clear()
+        if layout_options:
+            self.meeting_layout.addItems(layout_options)
+            self.meeting_layout.setEnabled(True)
+        else:
+            self.meeting_layout.addItem("無可用佈局")
+            self.meeting_layout.setEnabled(False)

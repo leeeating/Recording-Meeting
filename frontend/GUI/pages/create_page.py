@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.models.schemas import MeetingCreateSchema
-from frontend.events import BUS, MeetingPageSignals
+from frontend.GUI.events import BUS, MeetingPageSignals
 from frontend.GUI.config import MEETING_LAYOUT_OPTIONS
 from frontend.network import ApiClient, ApiWorker
 

@@ -10,17 +10,17 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from frontend.events import BUS
+from frontend.GUI.events import BUS
 from frontend.network.api_client import ApiClient
 
-from .pages import MeetingCreationPage, StatusPage, TaskQueryPage
+from .pages import MeetingCreationPage, MeetingQueryPage, StatusPage
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PyQt6 會議管理中心")
-        self.resize(1000, 700)  # 稍微放大一點方便操作
+        # self.center()
 
         self.api_client = ApiClient()
         self.current_worker = None
@@ -32,12 +32,12 @@ class MainWindow(QMainWindow):
         self._setup_layout()
         self._connect_signals()
 
-        self._switch_page(0)
+        self._switch_page(1)
 
     def _create_widgets(self):
         """建立所有核心元件"""
         self.page1_btn = QPushButton("📝 創建會議")
-        self.page2_btn = QPushButton("📊 查詢排程")
+        self.page2_btn = QPushButton("📊 排程任務資訊")
         self.page3_btn = QPushButton("ℹ️ 狀態頁面")
 
         for btn in [self.page1_btn, self.page2_btn, self.page3_btn]:
@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
 
         self.page_stack = QStackedWidget()
         self.creation_page = MeetingCreationPage(self.api_client)
-        self.query_page = TaskQueryPage()
+        self.query_page = MeetingQueryPage(self.api_client)
         self.statue_page = StatusPage()
 
         self.page_stack.addWidget(self.creation_page)
@@ -62,7 +62,7 @@ class MainWindow(QMainWindow):
         self.global_layout = QHBoxLayout(main_widget)
 
         self.nav_widget = QWidget()
-        self.nav_widget.setFixedWidth(220)
+        self.nav_widget.setFixedWidth(180)
         nav_layout = QVBoxLayout(self.nav_widget)
         nav_layout.addWidget(self.page1_btn)
         nav_layout.addWidget(self.page2_btn)
@@ -96,7 +96,8 @@ class MainWindow(QMainWindow):
         self.is_displaying = True
         msg, duration = self.msg_queue.popleft()
         display_time = duration * 1000 if duration > 0 else 2000  # 預設顯示 2 秒
-        self.statusBar().showMessage(msg, display_time)
+        if self.status_bar:
+            self.status_bar.showMessage(msg, display_time)
         QTimer.singleShot(display_time, self._process_queue)
 
     def _switch_page(self, index: int):
