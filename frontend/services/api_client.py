@@ -36,3 +36,7 @@ class ApiClient:
         response = requests.get(url, timeout=self.timeout)
         response.raise_for_status()
         return response.json()
+    
+    def update_meeting(self, meeting_id: str, data: MeetingCreateSchema):
+        """專門處理「更新會議」的網路通訊"""
+        pass
