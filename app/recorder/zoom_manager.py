@@ -3,9 +3,13 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
+<<<<<<< Updated upstream
 # # from pywinauto import Desktop
 
 from shared.config import config
+=======
+# from pywinauto import Desktop
+>>>>>>> Stashed changes
 
 from .utils import action
 
