@@ -184,3 +184,39 @@ QCheckBox::indicator:checked {
 QCheckBox::indicator:hover {
   border: 1px solid #88c0d0;
 }
+
+/* --- QDateTimeEdit 右側按鈕區域 --- */
+QDateTimeEdit::drop-down {
+  subcontrol-origin: padding;
+  subcontrol-position: top right;
+  width: 35px; /* 加寬按鈕區域，更好點擊 */
+  border-left: 1px solid #4c566a; /* 與輸入框之間增加一條分隔線 */
+  background-color: #434c5e; /* 稍微亮一點的背景，標示它是按鈕 */
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* 當滑鼠移到按鈕上方時變亮 */
+QDateTimeEdit::drop-down:hover {
+  background-color: #81a1c1;
+}
+
+/* 當點擊按鈕時 */
+QDateTimeEdit::drop-down:pressed {
+  background-color: #81a1c1; /* 點擊時呈現冰川藍 */
+}
+
+/* --- QDateTimeEdit 的箭頭圖示 --- */
+QDateTimeEdit::down-arrow {
+  /* 如果你想用自定義圖示，可以解開下面這行並放上路徑 */
+  /* image: url(calendar_icon.png); */
+
+  width: 16px; /* 放大圖示 */
+  height: 16px;
+  /* 這裡使用一個簡單的視覺標記，若不使用圖片，系統會維持預設箭頭 */
+}
+
+/* 確保輸入框在聚焦時，右側按鈕也有對應變化 */
+QDateTimeEdit:focus {
+  border: 1px solid #88c0d0;
+}

@@ -262,6 +262,7 @@ class MeetingFormWidget(QGroupBox):
 
         self.save_button = QPushButton("💾 提交變更")
         self.save_button.setMinimumHeight(45)
+        self._update_meeting_layout(self.meeting_type.currentText())
 
     def _layout_ui(self):
         main_layout = QVBoxLayout(self)
