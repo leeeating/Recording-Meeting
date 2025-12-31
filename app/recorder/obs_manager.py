@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 import obsws_python as obs
-import psutil
+# import psutil
 from pywinauto import Desktop
 # from pywinauto import Desktop
 
