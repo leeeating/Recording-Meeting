@@ -29,7 +29,7 @@ class ModernTimePicker(QDialog):
 
     def _init_ui(self):
         """初始化所有元件"""
-        # 1. 標題與顯示區
+        # 標題與顯示區
         self.lbl_title = QLabel("設定時間")
         self.lbl_display = QLabel(self.selected_time.toString("HH:mm"))
         self.lbl_display.setStyleSheet("font-size: 24px; color: #61dafb;")
@@ -37,6 +37,7 @@ class ModernTimePicker(QDialog):
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
 
+        # 小時選擇列表
         self.lbl_hour_header = QLabel("時")
         self.lbl_hour_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -47,14 +48,7 @@ class ModernTimePicker(QDialog):
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.list_hour.addItem(item)
 
-        # 設定初始選中
-        self.list_hour.setCurrentRow(self.selected_time.hour())
-        self.list_hour.scrollToItem(
-            self.list_hour.currentItem(), QAbstractItemView.ScrollHint.PositionAtCenter
-        )
-        self.list_hour.itemSelectionChanged.connect(self._update_display)
-
-        # 3. 分鐘選擇列表
+        # 分鐘選擇列表
         self.lbl_min_header = QLabel("分")
         self.lbl_min_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -65,12 +59,15 @@ class ModernTimePicker(QDialog):
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.list_min.addItem(item)
 
-        # 設定初始選中
+        # init value
+        self.list_hour.setCurrentRow(self.selected_time.hour())
         self.list_min.setCurrentRow(self.selected_time.minute())
-        self.list_min.scrollToItem(
-            self.list_min.currentItem(), QAbstractItemView.ScrollHint.PositionAtCenter
-        )
-        self.list_min.itemSelectionChanged.connect(self._update_display)
+
+        for lst in [self.list_hour, self.list_min]:
+            lst.scrollToItem(
+                lst.currentItem(), QAbstractItemView.ScrollHint.PositionAtCenter
+            )
+            lst.currentRowChanged.connect(self._update_display)
 
         # 4. 確定按鈕
         self.btn_ok = QPushButton("確認設定")
@@ -110,15 +107,19 @@ class ModernTimePicker(QDialog):
         main_layout.addWidget(self.btn_ok)
 
     def _update_display(self):
-        # 取得列表選中的值
-        h_items = self.list_hour.selectedItems()
-        m_items = self.list_min.selectedItems()
+        """
+        當小時或分鐘的 Row 改變時，立即更新 selected_time
+        """
+        h_row = self.list_hour.currentRow()
+        m_row = self.list_min.currentRow()
 
-        if h_items and m_items:
-            h = int(h_items[0].text())
-            m = int(m_items[0].text())
-            self.selected_time = QTime(h, m)
-            self.lbl_display.setText(self.selected_time.toString("HH:mm"))
+        # 安全檢查：若尚未選中則維持原值
+        h = h_row if h_row != -1 else self.selected_time.hour()
+        # 分鐘換算：索引 * 5 (索引 1 = 05分)
+        m = (m_row * 5) if m_row != -1 else self.selected_time.minute()
+
+        self.selected_time = QTime(h, m)
+        self.lbl_display.setText(self.selected_time.toString("HH:mm"))
 
     def get_time(self) -> QTime:
         return self.selected_time

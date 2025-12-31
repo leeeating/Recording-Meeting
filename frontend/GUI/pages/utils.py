@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Tuple, Type, TypeVar
 
-from PyQt6.QtCore import QDate, QDateTime, Qt, QTime
+from PyQt6.QtCore import QDate, QDateTime, Qt, QTime, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -25,43 +25,56 @@ ALIGNTOP = Qt.AlignmentFlag.AlignTop
 
 
 class DateTimeInputGroup(QWidget):
-    def __init__(
-        self,
-        offset_hours: int = 0,
-        height: int = 30,
-        parent=None,
-    ):
+    # 定義信號以利外部監聽連動邏輯
+    changed = pyqtSignal()
+
+    def __init__(self, offset_hours: int = 0, height: int = 30, parent=None):
         super().__init__(parent)
+        self.offset_hours = offset_hours
+        self.widget_height = height
+        initial_dt = QDateTime.currentDateTime().addSecs(self.offset_hours * 3600)
 
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(8)
+        self._init_ui(initial_dt)
+        self._setup_layout()
+        self._connect_signals()
 
-        # 取得初始時間
-        initial_datetime = QDateTime.currentDateTime().addSecs(offset_hours * 3600)
-
+    def _init_ui(self, initial_dt):
+        """僅負責建立 UI 元件與基本設定"""
         # A. 日期選擇器
-        self.date_picker = QDateTimeEdit(initial_datetime)
+        self.date_picker = QDateTimeEdit(initial_dt)
         self.date_picker.setCalendarPopup(True)
         self.date_picker.setDisplayFormat("yyyy/MM/dd")
-        self.date_picker.setMinimumHeight(height)
+        self.date_picker.setMinimumHeight(self.widget_height)
         self.date_picker.lineEdit().setReadOnly(True)
 
-        # B. 時間輸入
-        self.time_edit = TimePickerButton(initial_datetime.time())
-        self.time_edit.setMinimumHeight(height)
+        # B. 時間選擇器 (TimePickerButton)
+        self.time_edit = TimePickerButton(initial_dt.time())
+        self.time_edit.setMinimumHeight(self.widget_height)
 
-        main_layout.addWidget(QLabel("日期:"))
-        main_layout.addWidget(self.date_picker)
-        main_layout.addWidget(QLabel("時間:"))
-        main_layout.addWidget(self.time_edit)
+    def _setup_layout(self):
+        """僅負責排列 UI 元件"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
-        main_layout.addStretch()
+        layout.addWidget(QLabel("日期:"))
+        layout.addWidget(self.date_picker)
+        layout.addWidget(QLabel("時間:"))
+        layout.addWidget(self.time_edit)
+        layout.addStretch()
 
+    def _connect_signals(self):
+        """負責訊號與槽的連結"""
+        self.date_picker.dateChanged.connect(self.changed.emit)
+
+        if hasattr(self.time_edit, "timeChanged"):
+            self.time_edit.timeChanged.connect(self.changed.emit)
+
+    # --- 3. 邏輯操作方法 (Getter / Setter / Action) ---
     def get_datetime(self) -> datetime:
+        """獲取目前的 datetime 物件"""
         q_date = self.date_picker.date()
         q_time = self.time_edit.time()
-
         return datetime(
             q_date.year(),
             q_date.month(),
@@ -72,20 +85,17 @@ class DateTimeInputGroup(QWidget):
         )
 
     def set_datetime(self, dt: datetime):
+        """設定元件的時間與日期"""
         if not dt:
             return
-
-        q_date = QDate(dt.year, dt.month, dt.day)
-        q_time = QTime(dt.hour, dt.minute, dt.second)
-
-        self.date_picker.setDate(q_date)
-        self.time_edit.setTime(q_time)
+        self.date_picker.setDate(QDate(dt.year, dt.month, dt.day))
+        self.time_edit.setTime(QTime(dt.hour, dt.minute, dt.second))
 
     def reset(self):
-        """重置日期和時間為當前時間"""
-        current_datetime = QDateTime.currentDateTime()
-        self.date_picker.setDate(current_datetime.date())
-        self.time_edit.setTime(current_datetime.time())
+        """根據初始的 offset_hours 重置時間"""
+        target_dt = QDateTime.currentDateTime().addSecs(self.offset_hours * 3600)
+        self.date_picker.setDate(target_dt.date())
+        self.time_edit.setTime(target_dt.time())
 
 
 class CustomLineEdit(QLineEdit):

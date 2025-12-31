@@ -1,4 +1,5 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 
 from pydantic import ValidationError
 from PyQt6.QtCore import QDateTime, Qt, pyqtSignal
@@ -18,9 +19,10 @@ from PyQt6.QtWidgets import (
 )
 
 from app.models.schemas import MeetingCreateSchema
-from frontend.GUI.events import BottomBar
-from frontend.services.meeting_service import MeetingService
+from frontend.services.api_client import ApiClient
 
+from .base_page import BasePage
+from .page_config import ALIGNLEFT, ALIGNRIGHT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
 from .utils import (
     CustomLineEdit,
     DateTimeInputGroup,
@@ -29,110 +31,40 @@ from .utils import (
     get_widget_value,
 )
 
-ALIGNLEFT = Qt.AlignmentFlag.AlignLeft
-ALIGNRIGHT = Qt.AlignmentFlag.AlignRight
-ALIGNTOP = Qt.AlignmentFlag.AlignTop
-
-MEETING_LAYOUT_OPTIONS = {
-    "Webex": ["網格", "堆疊", "並排"],
-    "Zoom": ["演講者", "圖庫", "多位演講者", "沉浸式"],
-}
-
-MOCK_MEETINGS_DATA = {
-    "M001": {
-        "meeting_name": "季度業務回顧 (Q4 Review)",
-        "meeting_type": "Webex",
-        "meeting_url": "webex.com/meet/q4",
-        "room_id": "123456",
-        "meeting_password": "password123",
-        "meeting_layout": "網格",
-        "creator_name": "王小明",
-        "creator_email": "ming@example.com",
-        "start_time": "2025-12-30T20:01:00Z",
-        "end_time": "2025-12-30T21:01:00Z",
-        "repeat": "true",
-        "repeat_unit": 7,
-        "repeat_end_date": "2026-01-30T00:00:00Z",
-    },
-    "M002": {
-        "meeting_name": "季度業務回顧 (Q4 Review)",
-        "meeting_type": "Webex",
-        "meeting_url": "webex.com/meet/q4",
-        "room_id": "123456",
-        "meeting_password": "password123",
-        "meeting_layout": "網格",
-        "creator_name": "王小明",
-        "creator_email": "ming@example.com",
-        "start_time": "2025-12-30T20:01:00Z",
-        "end_time": "2025-12-30T21:01:00Z",
-        "repeat": "true",
-        "repeat_unit": 7,
-        "repeat_end_date": "2026-01-30T00:00:00Z",
-    },
-    "M003": {
-        "meeting_name": "季度業務回顧 (Q4 Review)",
-        "meeting_type": "Webex",
-        "meeting_url": "webex.com/meet/q4",
-        "room_id": "123456",
-        "meeting_password": "password123",
-        "meeting_layout": "網格",
-        "creator_name": "王小明",
-        "creator_email": "ming@example.com",
-        "start_time": "2025-12-30T20:01:00Z",
-        "end_time": "2025-12-30T21:01:00Z",
-        "repeat": "true",
-        "repeat_unit": 7,
-        "repeat_end_date": "2026-01-30T00:00:00Z",
-    },
-    "M004": {
-        "meeting_name": "季度業務回顧 (Q4 Review)",
-        "meeting_type": "Webex",
-        "meeting_url": "webex.com/meet/q4",
-        "room_id": "123456",
-        "meeting_password": "password123",
-        "meeting_layout": "網格",
-        "creator_name": "王小明",
-        "creator_email": "ming@example.com",
-        "start_time": "2025-12-30T20:01:00Z",
-        "end_time": "2025-12-30T21:01:00Z",
-        "repeat": "true",
-        "repeat_unit": 7,
-        "repeat_end_date": "2026-01-30T00:00:00Z",
-    },
-}
+logger = logging.getLogger(__name__)
 
 
-class MeetingManagerPage(QWidget):
-    def __init__(self, service: MeetingService, data_source: dict = MOCK_MEETINGS_DATA):
+class MeetingManagerPage(BasePage):
+    def __init__(self, api_client: ApiClient):
         super().__init__()
-        self.service = service
-        self.all_data = data_source
+        self.api_client = api_client
+        self.meeting_data = {}
         self.active_meeting_id = None
         self._worker_ref = None
 
         self._init_ui()
         self._layout_ui()
-        self._connect_method()
+        self._signal_connect()
 
+        self._on_add_new_clicked()
         self._refresh_list()
 
     def _init_ui(self):
-        self.title = QLabel("會議清單")
+        self.title = QLabel("會議管理系統")
         self.title.setObjectName("header")
+        self.refresh_btn = QPushButton("重新載入資料")
         self.add_new_btn = QPushButton("＋建立新會議")
         self.filter_chk = QCheckBox("僅顯示尚未開始的會議")
-
         self.view_list = QListWidget()
-
         self.form_widget = MeetingFormWidget()
 
     def _layout_ui(self):
         layout = QVBoxLayout(self)
 
-        # Header Layout
         header = QHBoxLayout()
         header.addWidget(self.title)
         header.addStretch()
+        header.addWidget(self.refresh_btn)
         header.addWidget(self.add_new_btn)
         header.addWidget(self.filter_chk)
 
@@ -140,62 +72,72 @@ class MeetingManagerPage(QWidget):
         layout.addWidget(self.view_list)
         layout.addWidget(self.form_widget)
 
-    def _connect_method(self):
+    def _signal_connect(self):
         self.add_new_btn.clicked.connect(self._on_add_new_clicked)
-        self.filter_chk.stateChanged.connect(self._refresh_list)
+        self.filter_chk.stateChanged.connect(self._update_list)
         self.view_list.itemClicked.connect(self._on_item_selected)
         self.form_widget.on_save_requested.connect(self._on_save_request)
+        self.refresh_btn.clicked.connect(self._refresh_list)
 
     def _on_add_new_clicked(self):
-        """切換為建立模式"""
         self.active_meeting_id = None
         self.view_list.clearSelection()
-        # 委派給元件處理 UI 變化
         self.form_widget.set_mode(is_create=True)
 
     def _on_item_selected(self, item):
-        """切換為編輯模式"""
         m_id = item.data(Qt.ItemDataRole.UserRole)
-        data = self.all_data.get(m_id)
-        if not data:
-            return
-
-        self.active_meeting_id = m_id
-        # 委派給元件處理 UI 變化與資料載入
-        self.form_widget.set_mode(is_create=False)
-        self.form_widget.load_data(data)
+        data = self.meeting_data.get(m_id)
+        if data:
+            self.active_meeting_id = m_id
+            self.form_widget.set_mode(is_create=False)
+            self.form_widget.load_data(data)
 
     def _on_save_request(self, meeting_schema: MeetingCreateSchema):
-        """接收表單傳來的驗證後資料，執行 Service 邏輯"""
-        if self._worker_ref and self._worker_ref.isRunning():
-            return
+        """直接調用 Client 進行儲存，並使用 callback 刷新"""
+        # edite
+        if self.active_meeting_id:
+            self.run_task(
+                self.api_client.update_meeting,
+                self.active_meeting_id,
+                meeting_schema,
+                success_msg="會議更新成功",
+                callback=self._refresh_list,  # 方法引用，減少 lambda
+                lock_widget=self.form_widget,
+            )
 
-        BottomBar.update_status.emit("🚀 處理中...", 0)
-        self.form_widget.setEnabled(False)  # 鎖定表單
+        # create
+        else:
+            self.run_task(
+                self.api_client.create_meeting,
+                meeting_schema,
+                success_msg="新會議已建立",
+                callback=self._refresh_list,
+                lock_widget=self.form_widget,
+            )
 
-        self._worker_ref = self.service.save_meeting(
-            self.active_meeting_id,
-            meeting_schema,
-            on_success=self._on_api_success,
-            on_error=self._on_api_error,
+    def _refresh_list(self, _=None):
+        """獲取所有會議資料"""
+        self.run_task(
+            self.api_client.get_all_meetings,
+            success_msg="資料庫同步完成",
+            callback=self._on_fetch_data_loaded,
         )
 
-    def _on_api_success(self, result):
-        BottomBar.update_status.emit("✅ 儲存成功！", 0)
-        self.form_widget.setEnabled(True)
-        self._refresh_list()
+    def _on_fetch_data_loaded(self, data_list):
+        """處理 API 回傳的資料結構"""
+        # 轉換為字典以方便 ID 檢索
+        self.meeting_data = {str(m.get("id")): m for m in data_list}
+        self._update_list()
 
-    def _on_api_error(self, err):
-        BottomBar.update_status.emit(f"❌ 錯誤: {err}", 0)
-        self.form_widget.setEnabled(True)
-
-    def _refresh_list(self):
-        """刷新清單並執行過濾邏輯"""
+    def _update_list(self):
+        """
+        顯示資料到UI
+        """
         self.view_list.clear()
         now = datetime.now()
         only_upcoming = self.filter_chk.isChecked()
 
-        for m_id, info in self.all_data.items():
+        for m_id, info in self.meeting_data.items():
             start_time_str = info.get("start_time", "")
             try:
                 m_start_dt = datetime.fromisoformat(
@@ -207,12 +149,18 @@ class MeetingManagerPage(QWidget):
             if only_upcoming and m_start_dt < now:
                 continue
 
-            item = QListWidgetItem(f"📅 {info.get('meeting_name', '未命名')}")
+            display_name = info.get("meeting_name", "未命名會議")
+            item = QListWidgetItem(f"📅 {display_name}")
             item.setData(Qt.ItemDataRole.UserRole, m_id)
+
             if m_start_dt < now:
                 item.setForeground(Qt.GlobalColor.gray)
                 item.setText(item.text() + " (已結束)")
+
             self.view_list.addItem(item)
+
+
+# ----------------------------------------------------------------------------
 
 
 class MeetingFormWidget(QGroupBox):
@@ -305,6 +253,7 @@ class MeetingFormWidget(QGroupBox):
     def _connect_signals(self):
         self.save_button.clicked.connect(self._handle_save)
         self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
+        self.start_time.changed.connect(self._sync_end_time)
 
     def set_mode(self, is_create: bool):
         """切換建立/編輯模式的 UI 狀態"""
@@ -374,21 +323,41 @@ class MeetingFormWidget(QGroupBox):
                 widget = getattr(self, field, None)
                 if widget:
                     data[field] = get_widget_value(widget)
+                else:
+                    data[field] = None
 
-            # 驗證資料
             validated_schema = MeetingCreateSchema.model_validate(data)
 
             # 發送 Pydantic 物件 (這裡對應上面的 pyqtSignal(object))
             self.on_save_requested.emit(validated_schema)
+            self._clear_form()
 
         except ValidationError as e:
             # 優化錯誤顯示格式
-            error_msg = "\n".join(
-                [f"{err['loc'][0]}: {err['msg']}" for err in e.errors()]
-            )
-            QMessageBox.warning(self, "資料錯誤", f"請檢查以下欄位：\n{error_msg}")
-        except ValueError as e:
+            # error_msg = "\n".join(
+            #     [f"{err['loc'][0]}: {err['msg']}" for err in e.errors()]
+            # )
+            QMessageBox.warning(self, "資料錯誤", f"請檢查以下欄位：\n{e}")
+
+        except Exception as e:
             QMessageBox.warning(self, "格式錯誤", str(e))
+
+    def _sync_end_time(self):
+        """
+        槽函式 (Slot)：處理具體的時間同步邏輯
+        """
+        try:
+            # 獲取當前起始時間
+            start_dt = self.start_time.get_datetime()
+
+            # 計算結束時間：起始時間 + 1 小時
+            new_end_dt = start_dt + timedelta(hours=1)
+
+            # 更新結束時間元件，這會顯示在 UI 上
+            self.end_time.set_datetime(new_end_dt)
+
+        except Exception as e:
+            logger.error(f"自動調整結束時間失敗: {e}")
 
     def _clear_form(self):
         """清空所有 UI 欄位"""

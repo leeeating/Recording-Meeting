@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
 
 from frontend.GUI.events import BottomBar
 from frontend.services.api_client import ApiClient
-from frontend.services.meeting_service import MeetingService  # 導入 Service 層
 
 from .pages import MeetingManagerPage, StatusPage
 
@@ -23,11 +22,10 @@ from .pages import MeetingManagerPage, StatusPage
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PyQt6 會議管理中心")
+        self.setWindowTitle("Recording Meeting")
         self.resize(1500, 800)
 
         self.api_client = ApiClient()
-        self.meeting_service = MeetingService(self.api_client)
 
         self.msg_queue = deque()
         self.is_displaying = False
@@ -37,7 +35,7 @@ class MainWindow(QMainWindow):
                 "id": "manager",
                 "title": "📝 會議管理",
                 "class": MeetingManagerPage,
-                "args": (self.meeting_service,),
+                "args": (self.api_client,),
             },
             {
                 "id": "status",
@@ -140,10 +138,6 @@ class MainWindow(QMainWindow):
 
         # 顯示結束後自動遞迴呼叫下一條
         QTimer.singleShot(display_time, self._process_queue)
-
-    # ==========================================
-    # 頁面切換與 UI 狀態同步
-    # ==========================================
 
     def _switch_page(self, index: int):
         """切換頁面並同步導航按鈕狀態"""

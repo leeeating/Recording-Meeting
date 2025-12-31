@@ -80,9 +80,6 @@ class MeetingService:
         """
         query = self.db.query(MeetingORM)
 
-        if params.start_time:
-            query = query.filter(MeetingORM.start_time >= params.start_time)
-
         sort_column = MeetingORM.start_time
         order_func = asc if params.order == "asc" else desc
         query = query.order_by(order_func(sort_column))

@@ -18,28 +18,32 @@ class CustomBaseModel(BaseModel):
 
 
 # ----- Meeting Schemas -----
-class MeetingCreateSchema(CustomBaseModel):
+
+
+class MeetingBase(CustomBaseModel):
+    """
+    共用欄位與「資料格式化」驗證
+    """
+
     meeting_name: str = Field(..., max_length=100, description="會議名稱")
     meeting_type: MeetingType = Field(..., description="會議類型")
     meeting_url: Optional[str] = Field(None, max_length=200, description="會議連結")
     room_id: Optional[str] = Field(None, max_length=50, description="會議識別 ID")
     meeting_password: Optional[str] = Field(None, max_length=50, description="會議密碼")
     meeting_layout: LayoutType = Field(..., description="會議佈局")
-
     creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
     creator_email: str = Field(..., max_length=100, description="會議建立者 Email")
-
     start_time: datetime = Field(..., description="排程開始時間")
     end_time: datetime = Field(..., description="排程結束時間")
     repeat: bool = Field(False, description="是否重複排程")
     repeat_unit: Optional[int] = Field(None, description="重複的天數")
     repeat_end_date: Optional[datetime] = Field(None, description="重複結束日期")
 
-    # add timezone to datetime
+    # --- 格式化驗證器 (Response 也需要的處理) ---
+
     @field_validator("start_time", "end_time", "repeat_end_date", mode="before")
     @classmethod
     def set_datetime_timezone(cls, v: Any) -> datetime:
-        # 使用相同的時區標準化邏輯 (已簡化)
         if isinstance(v, datetime):
             dt = v
         elif isinstance(v, str):
@@ -49,35 +53,31 @@ class MeetingCreateSchema(CustomBaseModel):
 
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
             return dt.replace(tzinfo=TAIPEI_TZ)
-        else:
-            return dt.astimezone(TAIPEI_TZ)
+        return dt.astimezone(TAIPEI_TZ)
 
-    # Transform input to interger
     @field_validator("repeat_unit", mode="before")
     @classmethod
     def transform_int(cls, v: Any) -> Optional[int]:
         if v is None or v == "":
             return None
-
         try:
             return int(v)
-
         except (ValueError, TypeError):
             raise ValueError("重複天數必須是有效的數字格式")
 
-    # Ensure end day formation
     @field_validator("repeat_end_date", mode="after")
     @classmethod
     def force_to_end_of_day(cls, v: Optional[datetime]) -> Optional[datetime]:
-        """
-        將輸入的日期強制轉換為當日的 23:59:59
-        """
         if v is None:
             return None
-
         return v.replace(hour=23, minute=59, second=59, microsecond=0)
 
-    # Ensure input information
+
+class MeetingCreateSchema(MeetingBase):
+    """
+    建立會議時使用的 Schema：包含嚴格的業務邏輯檢查
+    """
+
     @model_validator(mode="after")
     def validate_meeting_rules(self) -> Self:
         has_url = bool(self.meeting_url)
@@ -89,13 +89,10 @@ class MeetingCreateSchema(CustomBaseModel):
                 "會議連線資訊不足。請提供 'meeting_url' 或 'room_id' 搭配 'password'。"
             )
 
-        # 2. 檢查時間邏輯
         if self.start_time >= self.end_time:
             raise ValueError("排程結束時間必須嚴格晚於開始時間。")
-
         return self
 
-    # Ensure repeat information
     @model_validator(mode="after")
     def validate_repeat_rules(self) -> Self:
         if self.repeat:
@@ -107,16 +104,19 @@ class MeetingCreateSchema(CustomBaseModel):
                 raise ValueError("'repeat_end_date' 必須晚於 'start_time'。")
         return self
 
-    # Ensure the setting of time
     @model_validator(mode="after")
     def validate_start_end_time(self) -> Self:
-        if datetime.now(TAIPEI_TZ) < self.start_time < self.end_time:
-            return self
+        # 只在「建立」時檢查是否晚於現在
+        if self.start_time <= datetime.now(TAIPEI_TZ):
+            raise ValueError("排程開始時間必須晚於當前時間。")
+        return self
 
-        raise ValueError("排程開始時間必須晚於當前時間。")
 
+class MeetingResponseSchema(MeetingBase):
+    """
+    回傳資料時使用的 Schema：只繼承欄位與格式化，不繼承建立時的業務檢查
+    """
 
-class MeetingResponseSchema(MeetingCreateSchema):
     id: int = Field(..., description="會議主鍵 ID")
     created_at: datetime = Field(..., description="會議創建時間")
     updated_at: datetime = Field(..., description="會議最後更新時間")
@@ -127,12 +127,12 @@ class MeetingQuerySchema(BaseModel):
     start_time: Optional[datetime] = Field(None, description="過濾起始時間。")
 
     skip: int = Field(0, ge=0, description="跳過的記錄數。")
-    limit: int = Field(100, le=200, description="每頁的記錄數。")
+    limit: int = Field(10, le=20, description="每頁的記錄數。")
 
     sort_by: str = Field(
         "start_time", pattern=r"^(start_time|meeting_name)$", description="排序欄位。"
     )
-    order: str = Field("asc", pattern=r"^(asc|desc)$", description="排序順序。")
+    order: str = Field("desc", pattern=r"^(asc|desc)$", description="排序順序。")
 
 
 # ----- Task Schemas -----
