@@ -3,7 +3,7 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
-from pywinauto import Desktop
+# from pywinauto import Desktop
 
 from shared.config import config
 

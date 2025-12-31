@@ -7,8 +7,103 @@ QListWidget::item {
     padding: 3px 10px; ; 
 }
 
-/* 針對選中項目的樣式 (可選) */
+QListWidget {
+    font-size: 16px;  /* 文字大小 */
+}
+
+QListWidget::item {
+    height: 40px;     /* 每一列的高度，避免文字變大後太擠 */
+    padding-left: 10px; /* 左邊留白 */
+}
+
 QListWidget::item:selected {
-    background-color: #007bff;
+    background-color: #0078D4; /* 選中時的背景色 (可選) */
     color: white;
+}
+
+/* 1. 主體設定：同時針對 QComboBox 和 QDateTimeEdit */
+QComboBox, QDateTimeEdit {
+    min-height: 30px;     /* 增加整體高度 */
+    font-size: 14px;      /* 加大字體 */
+    padding-left: 10px;   /* 文字左側留白 */
+    border: 1px solid #555; 
+    border-radius: 5px;
+    background-color: #333; 
+    color: white;
+}
+
+/* 2. 下拉按鈕區域 (箭頭那塊) */
+QComboBox::drop-down, QDateTimeEdit::drop-down {
+    width: 30px;          /* 建議改為 30px 以上，10px 會太窄很難點 */
+    border-left: 1px solid #555;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+/* 3. 箭頭圖示 */
+QComboBox::down-arrow, QDateTimeEdit::down-arrow {
+    width: 14px;
+    height: 14px;
+    image: none; /* 如果預設箭頭樣式跑掉，可移除這行或指定圖片 */
+}
+
+/* 4. 彈出的選單與日曆視窗 */
+QComboBox QAbstractItemView, QCalendarWidget {
+    font-size: 14px;
+    background-color: #333;
+    color: white;
+    selection-background-color: #0078D4;
+}
+
+QDialog { background-color: #2b2b2b; color: white; border-radius: 8px; }
+QLabel { font-weight: bold; font-size: 16px; color: #aaa; }
+
+/* 列表樣式 */
+QListWidget {
+    background-color: #333;
+    border: none;
+    border-radius: 5px;
+    outline: none;
+    font-size: 18px;
+}
+QListWidget::item {
+    height: 35px;
+    color: #bbb;
+    padding-left: 10px;
+    border-radius: 4px;
+}
+/* 滑鼠滑過 */
+QListWidget::item:hover {
+    background-color: #444;
+}
+/* 選中狀態 */
+QListWidget::item:selected {
+    background-color: #0078D4;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+/* 按鈕樣式 */
+QPushButton {
+    background-color: #0078D4; 
+    color: white; border-radius: 5px; 
+    padding: 8px; font-size: 15px; font-weight: bold;
+}
+QPushButton:hover { background-color: #2b88d8; }
+
+
+QPushButton {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 5px 15px; /* 寬一點比較好看 */
+    text-align: left;
+    font-size: 16px;
+    }
+    
+QPushButton:hover {
+border: 1px solid #0078D4;
+background-color: #444;
 }

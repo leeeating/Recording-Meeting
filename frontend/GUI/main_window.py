@@ -1,8 +1,11 @@
 from collections import deque
+from typing import List
 
-from PyQt6.QtCore import QTimer, pyqtSlot
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QPushButton,
     QStackedWidget,
@@ -10,74 +13,109 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from frontend.GUI.events import BUS
-from frontend.network.api_client import ApiClient
+from frontend.GUI.events import BottomBar
+from frontend.services.api_client import ApiClient
+from frontend.services.meeting_service import MeetingService  # 導入 Service 層
 
-from .pages import MeetingCreationPage, MeetingQueryPage, StatusPage
+# 假設頁面已正確 Import
+from .pages import MeetingManagerPage, StatusPage
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PyQt6 會議管理中心")
-        # self.center()
+        self.resize(700, 700)
 
         self.api_client = ApiClient()
-        self.current_worker = None
+        self.meeting_service = MeetingService(self.api_client)
 
         self.msg_queue = deque()
         self.is_displaying = False
+
+        self.PAGES_CONFIG = [
+            {
+                "id": "manager",
+                "title": "📝 會議管理",
+                "class": MeetingManagerPage,
+                "args": (self.meeting_service,),
+            },
+            {
+                "id": "status",
+                "title": "ℹ️ 系統狀態",
+                "class": StatusPage,
+                "args": (),
+            },
+        ]
 
         self._create_widgets()
         self._setup_layout()
         self._connect_signals()
 
-        self._switch_page(1)
+        self._switch_page(0)
 
     def _create_widgets(self):
-        """建立所有核心元件"""
-        self.page1_btn = QPushButton("📝 創建會議")
-        self.page2_btn = QPushButton("📊 排程任務資訊")
-        self.page3_btn = QPushButton("ℹ️ 狀態頁面")
-
-        for btn in [self.page1_btn, self.page2_btn, self.page3_btn]:
-            btn.setCheckable(True)
-            btn.setProperty("class", "nav_button")
-
+        """建立所有核心元件：動態生成導航與頁面"""
         self.status_bar = self.statusBar()
-
         self.page_stack = QStackedWidget()
-        self.creation_page = MeetingCreationPage(self.api_client)
-        self.query_page = MeetingQueryPage(self.api_client)
-        self.statue_page = StatusPage()
+        self.nav_group = QButtonGroup(self)
+        self.nav_buttons: List[QPushButton] = []
 
-        self.page_stack.addWidget(self.creation_page)
-        self.page_stack.addWidget(self.query_page)
-        self.page_stack.addWidget(self.statue_page)
+        # 遍歷配置清單，自動生成 UI
+        for i, config in enumerate(self.PAGES_CONFIG):
+            btn = QPushButton(config["title"])
+            btn.setCheckable(True)
+            btn.setMinimumHeight(50)
+            btn.setProperty("class", "nav_button")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            # 使用 lambda 並捕獲當前索引 i
+            btn.clicked.connect(lambda _, idx=i: self._switch_page(idx))
+
+            self.nav_group.addButton(btn, i)
+            self.nav_buttons.append(btn)
+
+            # B. 建立頁面實體並注入對應參數
+            page_class = config["class"]
+            page_instance = page_class(*config["args"])
+            self.page_stack.addWidget(page_instance)
 
     def _setup_layout(self):
-        """組裝佈局結構 (維持原樣)"""
+        """組裝佈局結構 (維持導航在左，內容在右)"""
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         self.global_layout = QHBoxLayout(main_widget)
+        self.global_layout.setContentsMargins(0, 0, 0, 0)
+        self.global_layout.setSpacing(0)
 
+        # 左側導航列
         self.nav_widget = QWidget()
+        self.nav_widget.setObjectName("navWidget")
         self.nav_widget.setFixedWidth(180)
+
         nav_layout = QVBoxLayout(self.nav_widget)
-        nav_layout.addWidget(self.page1_btn)
-        nav_layout.addWidget(self.page2_btn)
-        nav_layout.addWidget(self.page3_btn)
+        nav_layout.setContentsMargins(10, 20, 10, 10)
+        nav_layout.setSpacing(10)
+
+        nav_title = QLabel("功能選單")
+        nav_layout.addWidget(nav_title)
+
+        for btn in self.nav_buttons:
+            nav_layout.addWidget(btn)
+
         nav_layout.addStretch()
 
+        # 右側內容區
         self.global_layout.addWidget(self.nav_widget)
         self.global_layout.addWidget(self.page_stack)
 
     def _connect_signals(self):
-        """連接所有信號"""
-        self.page1_btn.clicked.connect(lambda: self._switch_page(0))
-        self.page2_btn.clicked.connect(lambda: self._switch_page(1))
-        self.page3_btn.clicked.connect(lambda: self._switch_page(2))
-        BUS.update_status.connect(self._enqueue_status)
+        """連接全域信號"""
+        BottomBar.update_status.connect(self._enqueue_status)
+
+    # ==========================================
+    # 狀態列訊息隊列邏輯 (原有邏輯完整保留)
+    # ==========================================
 
     @pyqtSlot(str)
     @pyqtSlot(str, int)
@@ -95,13 +133,26 @@ class MainWindow(QMainWindow):
 
         self.is_displaying = True
         msg, duration = self.msg_queue.popleft()
-        display_time = duration * 1000 if duration > 0 else 2000  # 預設顯示 2 秒
+        display_time = duration * 1000 if duration > 0 else 2000
+
         if self.status_bar:
             self.status_bar.showMessage(msg, display_time)
+
+        # 顯示結束後自動遞迴呼叫下一條
         QTimer.singleShot(display_time, self._process_queue)
 
+    # ==========================================
+    # 頁面切換與 UI 狀態同步
+    # ==========================================
+
     def _switch_page(self, index: int):
+        """切換頁面並同步導航按鈕狀態"""
+        if index < 0 or index >= self.page_stack.count():
+            return
+
         self.page_stack.setCurrentIndex(index)
-        self.page1_btn.setChecked(index == 0)
-        self.page2_btn.setChecked(index == 1)
-        self.page3_btn.setChecked(index == 2)
+
+        # 同步更新按鈕選取狀態
+        btn = self.nav_group.button(index)
+        if btn:
+            btn.setChecked(True)

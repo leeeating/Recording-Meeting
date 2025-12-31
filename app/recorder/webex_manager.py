@@ -5,7 +5,7 @@ import time
 import webbrowser
 
 import pyautogui
-from pywinauto import Desktop
+# from pywinauto import Desktop
 
 # 假設你的環境已有此設定
 from shared.config import config
