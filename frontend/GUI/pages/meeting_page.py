@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
 )
 
 from app.models.schemas import MeetingCreateSchema
-from frontend.GUI.config import MEETING_LAYOUT_OPTIONS
 from frontend.GUI.events import BottomBar
 from frontend.services.meeting_service import MeetingService
 
@@ -34,6 +33,10 @@ ALIGNLEFT = Qt.AlignmentFlag.AlignLeft
 ALIGNRIGHT = Qt.AlignmentFlag.AlignRight
 ALIGNTOP = Qt.AlignmentFlag.AlignTop
 
+MEETING_LAYOUT_OPTIONS = {
+    "Webex": ["網格", "堆疊", "並排"],
+    "Zoom": ["演講者", "圖庫", "多位演講者", "沉浸式"],
+}
 
 MOCK_MEETINGS_DATA = {
     "M001": {
@@ -50,7 +53,52 @@ MOCK_MEETINGS_DATA = {
         "repeat": "true",
         "repeat_unit": 7,
         "repeat_end_date": "2026-01-30T00:00:00Z",
-    }
+    },
+    "M002": {
+        "meeting_name": "季度業務回顧 (Q4 Review)",
+        "meeting_type": "Webex",
+        "meeting_url": "webex.com/meet/q4",
+        "room_id": "123456",
+        "meeting_password": "password123",
+        "meeting_layout": "網格",
+        "creator_name": "王小明",
+        "creator_email": "ming@example.com",
+        "start_time": "2025-12-30T20:01:00Z",
+        "end_time": "2025-12-30T21:01:00Z",
+        "repeat": "true",
+        "repeat_unit": 7,
+        "repeat_end_date": "2026-01-30T00:00:00Z",
+    },
+    "M003": {
+        "meeting_name": "季度業務回顧 (Q4 Review)",
+        "meeting_type": "Webex",
+        "meeting_url": "webex.com/meet/q4",
+        "room_id": "123456",
+        "meeting_password": "password123",
+        "meeting_layout": "網格",
+        "creator_name": "王小明",
+        "creator_email": "ming@example.com",
+        "start_time": "2025-12-30T20:01:00Z",
+        "end_time": "2025-12-30T21:01:00Z",
+        "repeat": "true",
+        "repeat_unit": 7,
+        "repeat_end_date": "2026-01-30T00:00:00Z",
+    },
+    "M004": {
+        "meeting_name": "季度業務回顧 (Q4 Review)",
+        "meeting_type": "Webex",
+        "meeting_url": "webex.com/meet/q4",
+        "room_id": "123456",
+        "meeting_password": "password123",
+        "meeting_layout": "網格",
+        "creator_name": "王小明",
+        "creator_email": "ming@example.com",
+        "start_time": "2025-12-30T20:01:00Z",
+        "end_time": "2025-12-30T21:01:00Z",
+        "repeat": "true",
+        "repeat_unit": 7,
+        "repeat_end_date": "2026-01-30T00:00:00Z",
+    },
 }
 
 
@@ -70,6 +118,7 @@ class MeetingManagerPage(QWidget):
 
     def _init_ui(self):
         self.title = QLabel("會議清單")
+        self.title.setObjectName("header")
         self.add_new_btn = QPushButton("＋建立新會議")
         self.filter_chk = QCheckBox("僅顯示尚未開始的會議")
 
@@ -83,8 +132,8 @@ class MeetingManagerPage(QWidget):
         # Header Layout
         header = QHBoxLayout()
         header.addWidget(self.title)
-        header.addWidget(self.add_new_btn)
         header.addStretch()
+        header.addWidget(self.add_new_btn)
         header.addWidget(self.filter_chk)
 
         layout.addLayout(header)
@@ -168,14 +217,10 @@ class MeetingManagerPage(QWidget):
 
 class MeetingFormWidget(QGroupBox):
     SPACING = 10
-
-    # 修正 1: Signal 定義改為 object (或是 MeetingCreateSchema)
-    # 這樣才能傳遞 Pydantic Model 實例，而不是 dict
     on_save_requested = pyqtSignal(object)
 
     def __init__(self):
         super().__init__()
-        # self.setTitle("會議詳細設定")  # 建議加上標題，讓 GroupBox 看起來更完整
         self.setEnabled(False)
         self.setFixedHeight(500)
         self.setMinimumWidth(800)

@@ -1,109 +1,186 @@
+/* Nord Theme Palette:
+   Polar Night (背景): #2E3440, #3B4252
+   Snow Storm (文字): #D8DEE9, #ECEFF4
+   Frost (重點藍): #88C0D0, #81A1C1
+*/
+
+/* --- 全域設定 --- */
+QWidget {
+  font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+  background-color: #2e3440; /* 深海藍背景 */
+  color: #d8dee9; /* 柔和雪白文字 */
+  font-size: 14px;
+}
+
+/* --- 標題區域 --- */
 QLabel#header {
-    font-size: 18pt; 
-    font-weight: bold;
+  font-size: 22px;
+  font-weight: bold;
+  color: #88c0d0; /* 冰川藍標題 */
+  margin-bottom: 10px;
 }
 
-QListWidget::item {
-    padding: 3px 10px; ; 
+/* --- 欄位標籤 (Label) --- */
+QLabel {
+  color: #9ba3b2; /* 較暗的灰藍，降低干擾 */
+  font-weight: normal;
+  font-size: 14pt;
 }
 
+/* --- 輸入框與選擇器 (QLineEdit, QComboBox, QDateTimeEdit) --- */
+QLineEdit,
+QComboBox,
+QDateTimeEdit {
+  background-color: #3b4252; /* 稍淺的二次背景 */
+  border: 1px solid #4c566a; /* 邊框顏色 */
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #eceff4;
+  font-size: 16px;
+}
+
+QLineEdit:focus,
+QComboBox:focus,
+QDateTimeEdit:focus {
+  border: 1px solid #88c0d0; /* 聚焦時呈現冰川藍 */
+}
+
+/* --- 下拉選單按鈕與箭頭 --- */
+QComboBox::drop-down,
+QDateTimeEdit::drop-down {
+  border: none;
+  width: 30px;
+}
+
+/* --- 側邊欄列表 (QListWidget) --- */
 QListWidget {
-    font-size: 16px;  /* 文字大小 */
+  background-color: #242933; /* 最深色的側邊欄 */
+  border: none;
+  outline: none;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  font-size: 18px;
 }
 
 QListWidget::item {
-    height: 40px;     /* 每一列的高度，避免文字變大後太擠 */
-    padding-left: 10px; /* 左邊留白 */
+  padding: 8px 12px; /* 減少上下內邊距 (原為 12px) */
+  margin: 2px 8px; /* 大幅縮小上下間距 (原為 5px) */
+  border-radius: 6px;
+  color: #d8dee9;
+  height: 35px; /* 縮小高度 (原為 45px) */
 }
 
+/* --- 選中狀態的字體 (如果想要選中時更大或變粗) --- */
 QListWidget::item:selected {
-    background-color: #0078D4; /* 選中時的背景色 (可選) */
-    color: white;
+  background-color: #434c5e;
+  color: #88c0d0;
+  font-weight: bold; /* 變粗體 */
+  font-size: 20px; /* 選中時可以再稍微放大一點，增加視覺聚焦 */
 }
 
-/* 1. 主體設定：同時針對 QComboBox 和 QDateTimeEdit */
-QComboBox, QDateTimeEdit {
-    min-height: 30px;     /* 增加整體高度 */
-    font-size: 14px;      /* 加大字體 */
-    padding-left: 10px;   /* 文字左側留白 */
-    border: 1px solid #555; 
-    border-radius: 5px;
-    background-color: #333; 
-    color: white;
-}
-
-/* 2. 下拉按鈕區域 (箭頭那塊) */
-QComboBox::drop-down, QDateTimeEdit::drop-down {
-    width: 30px;          /* 建議改為 30px 以上，10px 會太窄很難點 */
-    border-left: 1px solid #555;
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
-}
-
-/* 3. 箭頭圖示 */
-QComboBox::down-arrow, QDateTimeEdit::down-arrow {
-    width: 14px;
-    height: 14px;
-    image: none; /* 如果預設箭頭樣式跑掉，可移除這行或指定圖片 */
-}
-
-/* 4. 彈出的選單與日曆視窗 */
-QComboBox QAbstractItemView, QCalendarWidget {
-    font-size: 14px;
-    background-color: #333;
-    color: white;
-    selection-background-color: #0078D4;
-}
-
-QDialog { background-color: #2b2b2b; color: white; border-radius: 8px; }
-QLabel { font-weight: bold; font-size: 16px; color: #aaa; }
-
-/* 列表樣式 */
-QListWidget {
-    background-color: #333;
-    border: none;
-    border-radius: 5px;
-    outline: none;
-    font-size: 18px;
-}
-QListWidget::item {
-    height: 35px;
-    color: #bbb;
-    padding-left: 10px;
-    border-radius: 4px;
-}
-/* 滑鼠滑過 */
 QListWidget::item:hover {
-    background-color: #444;
+  background-color: #3b4252;
 }
-/* 選中狀態 */
+
 QListWidget::item:selected {
-    background-color: #0078D4;
-    color: white;
-    font-weight: bold;
-    font-size: 20px;
+  background-color: #434c5e;
+  color: #88c0d0; /* 選中時文字變亮藍 */
+  font-weight: bold;
 }
 
-/* 按鈕樣式 */
+/* --- 按鈕樣式 (一般按鈕) --- */
 QPushButton {
-    background-color: #0078D4; 
-    color: white; border-radius: 5px; 
-    padding: 8px; font-size: 15px; font-weight: bold;
+  background-color: #434c5e;
+  color: #e5e9f0;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: bold;
+  font-size: 18px;
 }
-QPushButton:hover { background-color: #2b88d8; }
 
-
-QPushButton {
-    background-color: #333;
-    color: white;
-    border: 1px solid #555;
-    border-radius: 5px;
-    padding: 5px 15px; /* 寬一點比較好看 */
-    text-align: left;
-    font-size: 16px;
-    }
-    
 QPushButton:hover {
-border: 1px solid #0078D4;
-background-color: #444;
+  background-color: #4c566a;
+  border: 1px solid #81a1c1;
+}
+
+/* --- 強調按鈕 (儲存按鈕) --- */
+QPushButton#primaryButton,
+QPushButton[text*="儲存"] {
+  background-color: #88c0d0;
+  color: #2e3440; /* 亮色背景配深色文字，對比度最高 */
+}
+
+QPushButton#primaryButton:hover {
+  background-color: #8fbcbb; /* 稍微偏綠的冰川色 */
+}
+
+/* --- 滾動條優化 (讓它不破壞美感) --- */
+QScrollBar:vertical {
+  border: none;
+  /* 軌道背景：改為較深的背景色，讓亮藍色的滑塊「跳」出來 */
+  background: #3b4252;
+  width: 12px;
+  margin: 0px;
+  border-radius: 6px;
+}
+
+/* 滑塊：一般顯示狀態就是 88C0D0 */
+QScrollBar::handle:vertical {
+  background: #88c0d0;
+  min-height: 30px;
+  border-radius: 6px;
+  margin: 2px; /* 讓滑塊四周留白，看起來更精緻 */
+}
+
+/* 滑鼠懸停時滑塊的顏色 (稍微調亮一點點做互動回饋) */
+QScrollBar::handle:vertical:hover {
+  background: #a3be8c; /* 懸停時變為柔和的北歐綠，增加層次感 */
+}
+
+/* 移除背景殘影 */
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+  background: none;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+  height: 0px; /* 隱藏上下箭頭，讓介面更簡潔 */
+}
+
+/* --- 水平滾動條同步優化 (如有需要) --- */
+QScrollBar:horizontal {
+  border: none;
+  background: #242933;
+  height: 10px;
+}
+QScrollBar::handle:horizontal {
+  background: #81a1c1;
+  border-radius: 5px;
+}
+
+/* Checkbox */
+QCheckBox {
+  font-size: 16px; /* 放大文字到 18px，配合標題大小 */
+  color: #d8dee9;
+  spacing: 10px; /* 文字與勾選框之間的間距 */
+}
+
+/* 勾選框本身的圖示大小調整 */
+QCheckBox::indicator {
+  width: 22px; /* 放大勾選框圖示 */
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #4c566a;
+  background: #3b4252;
+}
+
+QCheckBox::indicator:checked {
+  background: #88c0d0; /* 勾選時變藍色 */
+  image: url(check_icon.png); /* 如果你有勾選圖示，可在此加入 */
+}
+
+QCheckBox::indicator:hover {
+  border: 1px solid #88c0d0;
 }

@@ -17,7 +17,6 @@ from frontend.GUI.events import BottomBar
 from frontend.services.api_client import ApiClient
 from frontend.services.meeting_service import MeetingService  # 導入 Service 層
 
-# 假設頁面已正確 Import
 from .pages import MeetingManagerPage, StatusPage
 
 
@@ -25,7 +24,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PyQt6 會議管理中心")
-        self.resize(700, 700)
+        self.resize(1500, 800)
 
         self.api_client = ApiClient()
         self.meeting_service = MeetingService(self.api_client)
@@ -98,6 +97,7 @@ class MainWindow(QMainWindow):
         nav_layout.setSpacing(10)
 
         nav_title = QLabel("功能選單")
+        nav_title.setObjectName("header")
         nav_layout.addWidget(nav_title)
 
         for btn in self.nav_buttons:
