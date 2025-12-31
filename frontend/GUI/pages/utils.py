@@ -12,11 +12,10 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QSizePolicy,
-    QTimeEdit,
     QWidget,
 )
 
-from .clock import PopUpTimeEdit
+from .clock_layout import TimePickerButton
 
 T = TypeVar("T", bound=QWidget)
 DEFAULT_WIDGET_HEIGHT = 30
@@ -48,9 +47,7 @@ class DateTimeInputGroup(QWidget):
         self.date_picker.setMinimumHeight(height)
 
         # B. 時間輸入
-        self.time_edit = PopUpTimeEdit(initial_datetime.time())
-        # self.time_edit.setWrapping(True)
-        # self.time_edit.setDisplayFormat("HH:mm")
+        self.time_edit = TimePickerButton(initial_datetime.time())
         self.time_edit.setMinimumHeight(height)
 
         main_layout.addWidget(QLabel("日期:"))
@@ -61,10 +58,6 @@ class DateTimeInputGroup(QWidget):
         main_layout.addStretch()
 
     def get_datetime(self) -> datetime:
-        """
-        將選擇的日期與時間合併，並回傳 Python datetime 物件。
-        這能讓 MeetingCreateSchema.model_validate 直接使用。
-        """
         q_date = self.date_picker.date()
         q_time = self.time_edit.time()
 
@@ -95,6 +88,10 @@ class DateTimeInputGroup(QWidget):
 
 
 class CustomLineEdit(QLineEdit):
+    """
+    設定寬、高、是否水平、垂直拉伸的 LineEdit
+    """
+
     def __init__(
         self,
         placeholder: str = "",

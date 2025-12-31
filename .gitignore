@@ -10,3 +10,4 @@ data/
 .vscode/
 logs/
 log_config*
+*deprecated*
