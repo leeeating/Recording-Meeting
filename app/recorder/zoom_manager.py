@@ -1,15 +1,13 @@
 import logging
+import sys
 import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
-<<<<<<< Updated upstream
-# # from pywinauto import Desktop
-
 from shared.config import config
-=======
-# from pywinauto import Desktop
->>>>>>> Stashed changes
+
+if sys.platform == "win32":
+    from pywinauto import Desktop
 
 from .utils import action
 

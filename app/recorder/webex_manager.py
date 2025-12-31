@@ -1,3 +1,4 @@
+import sys
 import logging
 import re
 import subprocess
@@ -5,9 +6,9 @@ import time
 import webbrowser
 
 import pyautogui
-# from pywinauto import Desktop
+if sys.platform == "win32":
+    from pywinauto import Desktop
 
-# 假設你的環境已有此設定
 from shared.config import config
 
 from .utils import action, copy_paste

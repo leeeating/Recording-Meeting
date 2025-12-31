@@ -1,15 +1,13 @@
 import logging
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import obsws_python as obs
-<<<<<<< Updated upstream
-# import psutil
-from pywinauto import Desktop
-=======
->>>>>>> Stashed changes
-# from pywinauto import Desktop
+
+if sys.platform == "win32":
+    from pywinauto import Desktop
 
 from shared.config import config
 
