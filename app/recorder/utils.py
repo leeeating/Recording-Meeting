@@ -30,7 +30,11 @@ def kill_process(Pname: str | None, logger: logging.Logger):
 
 
 @contextmanager
-def action(action_name: str, logger: logging.Logger):
+def action(
+    action_name: str,
+    logger: logging.Logger,
+    is_critical=False,
+):
     """
     統一處理每步驟的error
     """
@@ -40,5 +44,9 @@ def action(action_name: str, logger: logging.Logger):
         logger.info(f"成功執行 [{action_name}] 操作")
 
     except Exception as e:
-        logger.error(f"操作 [{action_name}] 失敗 {e}")
-        raise ActionError(f"操作 [{action_name}] 失敗, {e}")
+        if is_critical:
+            logger.critical(f"重大操作 [{action_name}] 失敗: {e}", exc_info=True)
+            raise ActionError(f"操作 [{action_name}] 失敗, {e}") from e
+
+        else:
+            logger.error(f"操作 [{action_name}] 失敗 {e}")

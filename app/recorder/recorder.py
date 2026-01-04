@@ -61,10 +61,9 @@ def start_recording(task_id: int):
             meeting_type = task.meeting.meeting_type.upper()
             scene_name = SCENE_NAME_MAP[meeting_type]
             obs_mgr.setup_obs_scene(scene_name=scene_name)
+            
             # obs_mgr.start_recording()
 
-            # uncomment for testing launch and kill obs
-            # raise
 
             # ----- status update -----
             task.status = TaskStatus.RECORDING
@@ -109,7 +108,7 @@ def start_recording(task_id: int):
             if task:
                 task.status = TaskStatus.FAILED
                 db.commit()
-            raise e
+            # raise e
 
 
 def end_recording(task_id: int):

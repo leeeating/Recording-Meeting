@@ -248,7 +248,7 @@ class TaskService:
             # 2. End Job
             self.scheduler.add_job(
                 end_recording,
-                args=[task],
+                args=[task_id],
                 trigger="date",
                 run_date=end_time,
                 id=f"task_end_{task_id}",

@@ -2,7 +2,14 @@ from datetime import datetime
 from typing import Any, Optional, Self
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from .enums import LayoutType, MeetingType, TaskStatus
 
@@ -43,13 +50,13 @@ class MeetingBase(CustomBaseModel):
 
     @field_validator("start_time", "end_time", "repeat_end_date", mode="before")
     @classmethod
-    def set_datetime_timezone(cls, v: Any) -> datetime:
+    def set_datetime_timezone(cls, v: Any, info: ValidationInfo) -> datetime:
         if isinstance(v, datetime):
             dt = v
         elif isinstance(v, str):
             dt = datetime.fromisoformat(v)
         else:
-            raise TypeError("時間必須是 datetime 或 ISO 字串")
+            raise TypeError(f"[{info.field_name}], 必須是 datetime 或 ISO 字串")
 
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
             return dt.replace(tzinfo=TAIPEI_TZ)

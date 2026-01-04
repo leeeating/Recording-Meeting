@@ -49,12 +49,12 @@ class ZoomManager:
         logger.debug(f"Starting Zoom meeting {self.meeting_name} ")
         zoom_meeting_url = self._parse_meeting_url()
 
-        with action("ZOOM開啟URL Schemas", logger):
+        with action("ZOOM開啟URL Schemas", logger, is_critical=True):
             webbrowser.open(zoom_meeting_url)
 
         time.sleep(2)
 
-        with action("[連線中]等待連線中", logger):
+        with action("[連線中]等待連線中", logger, is_critical=True):
             connect_window = Desktop(backend="uia").window(title_re=".*連線中.*")
             # connect_window.set_focus()
             connect_window.wait_not(
@@ -63,7 +63,7 @@ class ZoomManager:
                 retry_interval=1,
             )
 
-        with action("[Zoom Workplace]等待主持人允許", logger):
+        with action("[Zoom Workplace]等待主持人允許", logger, is_critical=True):
             main_window = Desktop(backend="uia").window(
                 title="Zoom Workplace",
                 class_name="zWaitingRoomWndClass",
@@ -85,10 +85,10 @@ class ZoomManager:
         我嘗試下來，這步驟的成功與否應該會依賴OBS開啟時是否有安全模式的提示框
         """
 
-        with action("[Zoom會議]Zoom視窗最大化", logger):
-            meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
-            meeting_window.maximize()
-            meeting_window.set_focus()
+        # with action("[Zoom會議]Zoom視窗最大化", logger):
+        #     meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
+        #     meeting_window.set_focus()
+        #     meeting_window.maximize()
 
         with action("[Zoom會議]按下檢視按鈕", logger):
             # detect layout button
@@ -108,6 +108,8 @@ class ZoomManager:
                 found_index=0,
             )
             layout_btn.click_input()
+            # Implement window maximization here will succeed
+            meeting_window.maximize()
 
         logger.info(f"Successfully changed layout to {self.layout}.")
 

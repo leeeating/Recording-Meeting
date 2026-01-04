@@ -18,6 +18,8 @@ class ModernTimePicker(QDialog):
     右欄：分鐘 (00-59)
     """
 
+    MINUTE_INTERVAL = 1
+
     def __init__(self, initial_time: QTime, parent=None):
         super().__init__(parent)
         self.setWindowTitle("選擇時間")
@@ -54,7 +56,7 @@ class ModernTimePicker(QDialog):
 
         self.list_min = QListWidget()
         self.list_min.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        for m in range(0, 60, 5):
+        for m in range(0, 60, self.MINUTE_INTERVAL):
             item = QListWidgetItem(f"{m:02d}")
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.list_min.addItem(item)
@@ -113,10 +115,12 @@ class ModernTimePicker(QDialog):
         h_row = self.list_hour.currentRow()
         m_row = self.list_min.currentRow()
 
-        # 安全檢查：若尚未選中則維持原值
         h = h_row if h_row != -1 else self.selected_time.hour()
-        # 分鐘換算：索引 * 5 (索引 1 = 05分)
-        m = (m_row * 5) if m_row != -1 else self.selected_time.minute()
+        m = (
+            (m_row * self.MINUTE_INTERVAL)
+            if m_row != -1
+            else self.selected_time.minute()
+        )
 
         self.selected_time = QTime(h, m)
         self.lbl_display.setText(self.selected_time.toString("HH:mm"))

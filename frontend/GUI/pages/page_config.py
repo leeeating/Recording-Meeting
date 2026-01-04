@@ -5,7 +5,7 @@ ALIGNRIGHT = Qt.AlignmentFlag.AlignRight
 ALIGNTOP = Qt.AlignmentFlag.AlignTop
 
 MEETING_LAYOUT_OPTIONS = {
-    "Webex": ["網格", "堆疊", "並排"],
+    "Webex": ["GRID", "STACKED", "SIDE_BY_SIDE"],
     "Zoom": ["演講者", "圖庫", "多位演講者", "沉浸式"],
 }
 

@@ -57,12 +57,12 @@ class WebexManager:
         """
         Open webex app and typing meeting information
         """
-        with action("啟動Webex應用程式", logger):
+        with action("啟動Webex應用程式", logger, is_critical=True):
             subprocess.Popen([config.WEBEX_APP_PATH])
 
         time.sleep(5)
 
-        with action("按下[加入會議]按鈕，進入輸入頁面", logger):
+        with action("按下[加入會議]按鈕，進入輸入頁面", logger, is_critical=True):
             main_window = Desktop(backend="uia").window(
                 title="Webex", class_name="MainWindow"
             )
@@ -91,17 +91,17 @@ class WebexManager:
 
     def _input_meeting_info(self):
         if self.meeting_url:
-            with action("輸入URL", logger):
+            with action("輸入URL", logger, is_critical=True):
                 copy_paste(self.meeting_url)
 
         else:
-            with action("輸入ID/PW", logger):
+            with action("輸入ID/PW", logger, is_critical=True):
                 copy_paste(self.meeting_id)
                 copy_paste(self.password)
 
         time.sleep(1)
 
-        with action("按下[加入會議]按鈕", logger):
+        with action("按下[加入會議]按鈕", logger, is_critical=True):
             waiting_window = Desktop(backend="uia").window(title_re=".*準備加入.*")
             waiting_window.set_focus()
             btn = waiting_window.child_window(

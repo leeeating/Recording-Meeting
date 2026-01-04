@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import obsws_python as obs
+import psutil
 
 if sys.platform == "win32":
     from pywinauto import Desktop
