@@ -45,7 +45,7 @@ class DateTimeInputGroup(QWidget):
         self.date_picker.setCalendarPopup(True)
         self.date_picker.setDisplayFormat("yyyy/MM/dd")
         self.date_picker.setMinimumHeight(self.widget_height)
-        self.date_picker.lineEdit().setReadOnly(True)
+        self.date_picker.lineEdit().setReadOnly(True)  # type: ignore
 
         # B. 時間選擇器 (TimePickerButton)
         self.time_edit = TimePickerButton(initial_dt.time())

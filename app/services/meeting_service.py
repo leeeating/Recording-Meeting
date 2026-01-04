@@ -29,7 +29,8 @@ class MeetingService:
 
     # ----- Create Methods -----
     def create_meeting_and_task(
-        self, meeting_data: MeetingCreateSchema
+        self,
+        meeting_data: MeetingCreateSchema,
     ) -> MeetingResponseSchema:
         """
         創建 Meeting 記錄，並自動觸發 Task 的創建與排程。
@@ -57,7 +58,10 @@ class MeetingService:
         return MeetingResponseSchema.model_validate(meeting)
 
     # ----- Query Methods -----
-    def get_meeting_by_id(self, meeting_id: int) -> MeetingResponseSchema:
+    def get_meeting_by_id(
+        self,
+        meeting_id: int,
+    ) -> MeetingResponseSchema:
         """
         根據 ID 獲取 Meeting 記錄，包含關聯的 Tasks。
         """
@@ -74,7 +78,10 @@ class MeetingService:
 
         return MeetingResponseSchema.model_validate(meeting)
 
-    def get_meetings(self, params: MeetingQuerySchema) -> List[MeetingResponseSchema]:
+    def get_meetings(
+        self,
+        params: MeetingQuerySchema,
+    ) -> List[MeetingResponseSchema]:
         """
         根據查詢參數獲取 Meeting 列表，支持分頁和排序。
         """
@@ -88,28 +95,52 @@ class MeetingService:
         return [MeetingResponseSchema.model_validate(meeting) for meeting in meetings]
 
     # ----- Update Methods -----
-    def update_meeting(self, meeting_id: int, **kwargs) -> MeetingResponseSchema:
+    def update_meeting(
+        self,
+        meeting_id: int,
+        data: MeetingCreateSchema,
+    ) -> MeetingResponseSchema:
         meeting = self.db.query(MeetingORM).filter(MeetingORM.id == meeting_id).first()
 
         if not meeting:
             self.logger.error(f"Cannot update: Meeting ID {meeting_id} not found.")
             raise NotFoundError(detail=f"Meeting ID {meeting_id} not found.")
 
-        for key, value in kwargs.items():
-            if hasattr(meeting, key):
-                current_value = getattr(meeting, key)
+        updates = data.model_dump(exclude_unset=True)
 
-                if current_value != value:
-                    setattr(meeting, key, value)
-                    self.logger.info(
-                        f"Updated Meeting ID {meeting_id}: set {key} to {value}"
-                    )
+        columns_with_time = [
+            "start_time",
+            "end_time",
+            "repeat",
+            "repeat_unit",
+            "repeat_end_date",
+        ]
+        has_changes = False
+        for key, value in updates.items():
+            if (hasattr(meeting, key)) and (getattr(meeting, key) != value):
+                setattr(meeting, key, value)
+                has_changes = True
+                if key in columns_with_time:
+                    self.task_service.update_task(meeting)
 
-        self.db.add(meeting)
+        if has_changes:
+            try:
+                self.db.commit()
+                self.db.refresh(meeting)
+                self.logger.info(f"會議 {meeting_id} 更新完成")
+
+            except Exception as e:
+                self.db.rollback()
+                self.logger.error(f"資料庫更新失敗: {str(e)}")
+                raise
+
         return MeetingResponseSchema.model_validate(meeting)
 
     # ----- Delete Methods -----
-    def delete_meeting(self, meeting_id: int) -> MeetingResponseSchema:
+    def delete_meeting(
+        self,
+        meeting_id: int,
+    ) -> MeetingResponseSchema:
         """
         刪除指定 ID 的 Meeting 記錄及其關聯的 Tasks。
         """

@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, status
 from typing import List
 
-from app.services.meeting_service import MeetingService
+from fastapi import APIRouter, Depends, status
+
+from app.controllers.dependencies import get_meeting_service
 from app.models.schemas import (
     MeetingCreateSchema,
     MeetingQuerySchema,
     MeetingResponseSchema,
 )
-from app.controllers.dependencies import get_meeting_service
+from app.services.meeting_service import MeetingService
 
 router = APIRouter(prefix="/meeting", tags=["Meetings"])
 
@@ -22,8 +23,7 @@ router = APIRouter(prefix="/meeting", tags=["Meetings"])
 async def create_meeting_endpoint(
     meeting_data: MeetingCreateSchema,
     service: MeetingService = Depends(get_meeting_service),
-):
-    # 直接回傳，若拋出 SchedulingError 或其他錯誤，會被全域 Handler 捕捉
+) -> MeetingResponseSchema:
     return service.create_meeting_and_task(meeting_data)
 
 
@@ -35,7 +35,7 @@ async def create_meeting_endpoint(
 )
 async def get_meeting_endpoint(
     meeting_id: int, service: MeetingService = Depends(get_meeting_service)
-):
+) -> MeetingResponseSchema:
     # 若找不到 ID，Service 拋出的 NotFoundError 會自動轉為 404 JSON
     return service.get_meeting_by_id(meeting_id)
 
@@ -48,7 +48,7 @@ async def get_meeting_endpoint(
 async def get_meetings(
     params: MeetingQuerySchema = Depends(),
     service: MeetingService = Depends(get_meeting_service),
-):
+) -> List[MeetingResponseSchema]:
     return service.get_meetings(params)
 
 
@@ -62,10 +62,9 @@ async def update_meeting_endpoint(
     meeting_id: int,
     update_data: MeetingCreateSchema,
     service: MeetingService = Depends(get_meeting_service),
-):
+) -> MeetingResponseSchema:
     # 過濾未設定欄位
-    updates = update_data.model_dump(exclude_unset=True)
-    return service.update_meeting(meeting_id, **updates)
+    return service.update_meeting(meeting_id, update_data)
 
 
 # ----- Delete Endpoints -----

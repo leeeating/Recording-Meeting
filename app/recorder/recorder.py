@@ -113,6 +113,7 @@ def start_recording(task_id: int):
 
 
 def end_recording(task_id: int):
+    task = None
     with Session(database_engine) as db:
         try:
             task = (
@@ -156,6 +157,9 @@ def end_recording(task_id: int):
                 exc_info=True,
                 extra={"send_email": True},
             )
+            if task:
+                task.status = TaskStatus.FAILED
+                db.commit()
             raise e
 
 

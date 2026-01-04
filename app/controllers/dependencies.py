@@ -1,11 +1,10 @@
-from fastapi import Depends
-from typing import List
-from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 # 引入核心配置和例外
 from app.core.database import get_db
-from app.core.scheduler import create_scheduler, scheduler
+from app.core.scheduler import scheduler
 
 # 引入服務層
 from app.services.meeting_service import MeetingService
@@ -25,6 +24,7 @@ def get_task_service(
 
 # 會議服務依賴於 DB Session 和 TaskService
 def get_meeting_service(
-    db: Session = Depends(get_db), task_service: TaskService = Depends(get_task_service)
+    db: Session = Depends(get_db),
+    task_service: TaskService = Depends(get_task_service),
 ) -> MeetingService:
     return MeetingService(db=db, task_service=task_service)

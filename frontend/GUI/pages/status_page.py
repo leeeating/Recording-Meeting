@@ -1,4 +1,3 @@
-from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -6,25 +5,24 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QVBoxLayout,
-    QWidget,
 )
 
+from frontend.services import ApiClient
 
-class StatusPage(QWidget):
-    # 定義自定義信號（如果需要通知父視窗）
-    status_updated = pyqtSignal(bool)
+from .base_page import BasePage
 
-    def __init__(self):
+
+class StatusPage(BasePage):
+    def __init__(self, api_client: ApiClient):
         super().__init__()
-        # 初始化核心組件
+        self.api_client = api_client
+
         self._create_widgets()
         self._setup_layout()
         self._connect_signals()
 
         # 設定自動更新定時器 (5秒更新一次)
-        self.refresh_timer = QTimer(self)
-        self.refresh_timer.timeout.connect(self.fetch_data_from_backend)
-        self.refresh_timer.start(5000)
+        self._check_backend_status()
 
     def _create_widgets(self):
         """1. 建立所有 UI 元件"""
@@ -70,20 +68,20 @@ class StatusPage(QWidget):
         self.setLayout(main_layout)
 
     def _connect_signals(self):
-        """3. 連接按鈕與信號"""
-        self.refresh_button.clicked.connect(self.fetch_data_from_backend)
+        self.refresh_button.clicked.connect(self._check_backend_status)
 
     # --- 邏輯處理 ---
 
-    def fetch_data_from_backend(self):
-        """向 FastAPI 請求資料"""
-        # 這裡之後會放入 requests.get("http://localhost:8000/task/scheduler/status")
-        # 模擬成功後的更新動作：
-        self._update_ui_state(online=True, msg="排程器正常運作中")
+    def _check_backend_status(self):
+        self.run_request(
+            self.api_client.get_backend_status,
+            success_msg="後端執行中",
+            callback=self._update_ui_state,
+        )
 
-    def _update_ui_state(self, online: bool, msg: str):
+    def _update_ui_state(self, online: bool):
         """更新 UI 視覺狀態"""
         color = "#2ecc71" if online else "#e74c3c"
+        msg = "系統連線中" if online else "伺服器離線"
         self.status_dot.setStyleSheet(f"color: {color}; font-size: 18px;")
         self.status_text.setText(msg)
-        self.status_updated.emit(online)

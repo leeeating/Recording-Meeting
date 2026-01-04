@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.models.schemas import MeetingCreateSchema
+from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
 from frontend.services.api_client import ApiClient
 
 from .base_page import BasePage
@@ -38,7 +38,7 @@ class MeetingManagerPage(BasePage):
     def __init__(self, api_client: ApiClient):
         super().__init__()
         self.api_client = api_client
-        self.meeting_data = {}
+        self.meeting_list = {}
         self.active_meeting_id = None
         self._worker_ref = None
 
@@ -74,9 +74,9 @@ class MeetingManagerPage(BasePage):
 
     def _signal_connect(self):
         self.add_new_btn.clicked.connect(self._on_add_new_clicked)
-        self.filter_chk.stateChanged.connect(self._update_list)
+        self.filter_chk.stateChanged.connect(self._update_list_data)
         self.view_list.itemClicked.connect(self._on_item_selected)
-        self.form_widget.on_save_requested.connect(self._on_save_request)
+        self.form_widget.save_requested.connect(self._handle_save_request)
         self.refresh_btn.clicked.connect(self._refresh_list)
 
     def _on_add_new_clicked(self):
@@ -84,30 +84,30 @@ class MeetingManagerPage(BasePage):
         self.view_list.clearSelection()
         self.form_widget.set_mode(is_create=True)
 
-    def _on_item_selected(self, item):
+    def _on_item_selected(self, item: QListWidgetItem):
         m_id = item.data(Qt.ItemDataRole.UserRole)
-        data = self.meeting_data.get(m_id)
+        data = self.meeting_list.get(m_id)
         if data:
             self.active_meeting_id = m_id
             self.form_widget.set_mode(is_create=False)
             self.form_widget.load_data(data)
 
-    def _on_save_request(self, meeting_schema: MeetingCreateSchema):
+    def _handle_save_request(self, meeting_schema: MeetingCreateSchema):
         """直接調用 Client 進行儲存，並使用 callback 刷新"""
-        # edite
+        # update request
         if self.active_meeting_id:
-            self.run_task(
+            self.run_request(
                 self.api_client.update_meeting,
                 self.active_meeting_id,
                 meeting_schema,
                 success_msg="會議更新成功",
-                callback=self._refresh_list,  # 方法引用，減少 lambda
+                callback=self._refresh_list,
                 lock_widget=self.form_widget,
             )
 
-        # create
+        # create request
         else:
-            self.run_task(
+            self.run_request(
                 self.api_client.create_meeting,
                 meeting_schema,
                 success_msg="新會議已建立",
@@ -117,39 +117,31 @@ class MeetingManagerPage(BasePage):
 
     def _refresh_list(self, _=None):
         """獲取所有會議資料"""
-        self.run_task(
+        self.run_request(
             self.api_client.get_all_meetings,
             success_msg="資料庫同步完成",
             callback=self._on_fetch_data_loaded,
         )
 
-    def _on_fetch_data_loaded(self, data_list):
+    def _on_fetch_data_loaded(self, data_list: list[MeetingResponseSchema]):
         """處理 API 回傳的資料結構"""
-        # 轉換為字典以方便 ID 檢索
-        self.meeting_data = {str(m.get("id")): m for m in data_list}
-        self._update_list()
+        self.meeting_list = {str(m.id): m for m in data_list}
+        self._update_list_data()
 
-    def _update_list(self):
-        """
-        顯示資料到UI
-        """
+    def _update_list_data(self):
+        """顯示資料到 UI"""
         self.view_list.clear()
         now = datetime.now()
         only_upcoming = self.filter_chk.isChecked()
 
-        for m_id, info in self.meeting_data.items():
-            start_time_str = info.get("start_time", "")
-            try:
-                m_start_dt = datetime.fromisoformat(
-                    start_time_str.replace("Z", "+00:00")
-                ).replace(tzinfo=None)
-            except Exception:
-                m_start_dt = now
+        for m_id, m in self.meeting_list.items():
+            m_start_dt = m.start_time.replace(tzinfo=None) if m.start_time else now
 
             if only_upcoming and m_start_dt < now:
                 continue
 
-            display_name = info.get("meeting_name", "未命名會議")
+            display_name = m.meeting_name or "未命名會議"
+
             item = QListWidgetItem(f"📅 {display_name}")
             item.setData(Qt.ItemDataRole.UserRole, m_id)
 
@@ -165,7 +157,7 @@ class MeetingManagerPage(BasePage):
 
 class MeetingFormWidget(QGroupBox):
     SPACING = 10
-    on_save_requested = pyqtSignal(object)
+    save_requested = pyqtSignal(object)
 
     def __init__(self):
         super().__init__()
@@ -178,6 +170,9 @@ class MeetingFormWidget(QGroupBox):
         self._connect_signals()
 
     def _init_ui(self):
+        """
+        property name according to schema name
+        """
         self.meeting_name = CustomLineEdit(placeholder="請輸入會議名稱", width=400)
 
         # Left column
@@ -251,7 +246,7 @@ class MeetingFormWidget(QGroupBox):
         main_layout.addWidget(self.save_button, alignment=ALIGNRIGHT)
 
     def _connect_signals(self):
-        self.save_button.clicked.connect(self._handle_save)
+        self.save_button.clicked.connect(self._collect_date_and_emit_signal)
         self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
         self.start_time.changed.connect(self._sync_end_time)
 
@@ -264,100 +259,92 @@ class MeetingFormWidget(QGroupBox):
                 "background-color: #28a745; color: white; font-weight: bold;"
             )
             self._clear_form()
+
         else:
             self.save_button.setText("💾 儲存變更內容")
             self.save_button.setStyleSheet(
                 "background-color: #0078D4; color: white; font-weight: bold;"
             )
 
-    def load_data(self, data: dict):
-        """將資料填入表單"""
-        self.meeting_name.setText(data.get("meeting_name", ""))
-        self.meeting_type.setCurrentText(data.get("meeting_type", "Webex"))
+    def load_data(self, data: MeetingResponseSchema):
+        """
+        將 Pydantic 物件資料填入表單
+        """
+        logger.info(f"表單載入會議資料: {data.meeting_name} (ID: {data.id})")
 
-        self._update_meeting_layout(self.meeting_type.currentText())
-        self.meeting_layout.setCurrentText(data.get("meeting_layout", ""))
+        # 基本文字欄位 (使用物件屬性，不再需要 .get)
+        self.meeting_name.setText(data.meeting_name or "")
+        self.meeting_url.setText(data.meeting_url or "")
+        self.room_id.setText(data.room_id or "")
+        self.meeting_password.setText(data.meeting_password or "")
+        self.creator_name.setText(data.creator_name or "")
+        self.creator_email.setText(data.creator_email or "")
 
-        self.meeting_url.setText(data.get("meeting_url", ""))
-        self.room_id.setText(data.get("room_id", ""))
-        self.meeting_password.setText(data.get("meeting_password", ""))
-        self.creator_name.setText(data.get("creator_name", ""))
-        self.creator_email.setText(data.get("creator_email", ""))
+        # 下拉選單與連動邏輯
+        m_type = data.meeting_type or "Webex"
+        self.meeting_type.setCurrentText(m_type)
 
-        self.repeat.setChecked(str(data.get("repeat", "")).lower() == "true")
-        self.repeat_unit.setText(str(data.get("repeat_unit", "0")))
+        # 觸發佈局連動，再設定佈局值
+        self._update_meeting_layout(m_type)
+        self.meeting_layout.setCurrentText(data.meeting_layout or "")
 
-        # 修正 2: 增加時間解析的安全性
-        try:
-            s_time_str = data.get("start_time", "")
-            if s_time_str:
-                s_dt = datetime.fromisoformat(
-                    s_time_str.replace("Z", "+00:00")
-                ).replace(tzinfo=None)
-                self.start_time.set_datetime(s_dt)
+        # 週期性與布林值 (Pydantic 已經保證 data.repeat 是 bool)
+        self.repeat.setChecked(data.repeat)
+        self.repeat_unit.setText(str(data.repeat_unit or "0"))
 
-            e_time_str = data.get("end_time", "")
-            if e_time_str:
-                e_dt = datetime.fromisoformat(
-                    e_time_str.replace("Z", "+00:00")
-                ).replace(tzinfo=None)
-                self.end_time.set_datetime(e_dt)
-        except ValueError:
-            print("Warning: Date parsing failed in load_data")
+        # 時間處理：現在 data.start_time 已經是 datetime 物件了
+        if data.start_time:
+            self.start_time.set_datetime(data.start_time.replace(tzinfo=None))
 
-        r_dt_str = data.get("repeat_end_date", "")
-        if r_dt_str:
-            # 處理可能帶有 Z 的 ISO 字串轉為 PyQt QDateTime
-            clean_str = r_dt_str.replace("Z", "")
-            r_qdt = QDateTime.fromString(clean_str, Qt.DateFormat.ISODate)
-            if r_qdt.isValid():
-                self.repeat_end_date.setDateTime(r_qdt)
+        if data.end_time:
+            self.end_time.set_datetime(data.end_time.replace(tzinfo=None))
 
-    def _handle_save(self):
+        # 週期結束日期：處理 QDateTime 轉換
+        if data.repeat_end_date:
+            r_dt = data.repeat_end_date
+            q_dt = QDateTime(r_dt.year, r_dt.month, r_dt.day, 0, 0)
+            self.repeat_end_date.setDateTime(q_dt)
+        else:
+            self.repeat_end_date.setDateTime(QDateTime.currentDateTime())
+
+    def _collect_date_and_emit_signal(self):
         """收集資料並發送訊號"""
         try:
             data = {}
-            # 這裡假設你的 Schema 欄位名稱跟 Widget 變數名稱是一一對應的
-            # 這是使用 getattr 的前提
             for field in MeetingCreateSchema.model_fields.keys():
                 widget = getattr(self, field, None)
                 if widget:
                     data[field] = get_widget_value(widget)
-                else:
-                    data[field] = None
+
+            if data["repeat_unit"] is None:
+                data["repeat_unit"] = 0
 
             validated_schema = MeetingCreateSchema.model_validate(data)
 
-            # 發送 Pydantic 物件 (這裡對應上面的 pyqtSignal(object))
-            self.on_save_requested.emit(validated_schema)
+            self.save_requested.emit(validated_schema)
             self._clear_form()
 
         except ValidationError as e:
             # 優化錯誤顯示格式
-            # error_msg = "\n".join(
-            #     [f"{err['loc'][0]}: {err['msg']}" for err in e.errors()]
-            # )
-            QMessageBox.warning(self, "資料錯誤", f"請檢查以下欄位：\n{e}")
+            error_msg = "\n".join([f"{err['loc']}: {err['msg']}" for err in e.errors()])
+            QMessageBox.warning(self, "資料錯誤", f"請檢查以下欄位：\n{error_msg}")
 
         except Exception as e:
             QMessageBox.warning(self, "格式錯誤", str(e))
 
     def _sync_end_time(self):
         """
-        槽函式 (Slot)：處理具體的時間同步邏輯
+        end time隨者start time改變
         """
         try:
-            # 獲取當前起始時間
             start_dt = self.start_time.get_datetime()
 
-            # 計算結束時間：起始時間 + 1 小時
             new_end_dt = start_dt + timedelta(hours=1)
 
-            # 更新結束時間元件，這會顯示在 UI 上
             self.end_time.set_datetime(new_end_dt)
 
         except Exception as e:
-            logger.error(f"自動調整結束時間失敗: {e}")
+            logger.warning(f"自動調整結束時間失敗: {e}")
 
     def _clear_form(self):
         """清空所有 UI 欄位"""

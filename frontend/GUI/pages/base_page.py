@@ -7,7 +7,7 @@ from frontend.services.api_client import ApiWorker
 
 
 class BasePage(QWidget):
-    def run_task(
+    def run_request(
         self,
         api_func,
         *args,
@@ -16,7 +16,9 @@ class BasePage(QWidget):
         lock_widget=None,
         **kwargs,
     ):
-        """自動封裝 Worker 並連接訊號"""
+        """
+        使用ApiWorker在新線程中執行API請求
+        """
         BottomBar.update_status.emit("🚀 處理中...", 0)
         if lock_widget:
             lock_widget.setEnabled(False)
@@ -25,19 +27,19 @@ class BasePage(QWidget):
 
         worker.success.connect(
             partial(
-                self._on_base_success,
+                self._on_success,
                 success_msg=success_msg,
                 callback=callback,
                 lock_widget=lock_widget,
             )
         )
-        worker.error.connect(partial(self._on_base_error, lock_widget=lock_widget))
+        worker.error.connect(partial(self._on_error, lock_widget=lock_widget))
 
         worker.start()
         self._worker_ref = worker
 
-    def _on_base_success(self, result, success_msg, callback, lock_widget):
-        BottomBar.update_status.emit(f"✅ {success_msg}", 2000)
+    def _on_success(self, result, success_msg, callback, lock_widget):
+        BottomBar.update_status.emit(f"✅ {success_msg}", 2)
         if lock_widget:
             lock_widget.setEnabled(True)
 
@@ -48,7 +50,7 @@ class BasePage(QWidget):
             except TypeError:
                 callback()
 
-    def _on_base_error(self, err_msg, lock_widget):
+    def _on_error(self, err_msg, lock_widget):
         BottomBar.update_status.emit(f"❌ 錯誤: {err_msg}", 0)
         if lock_widget:
             lock_widget.setEnabled(True)

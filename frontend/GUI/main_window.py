@@ -41,7 +41,7 @@ class MainWindow(QMainWindow):
                 "id": "status",
                 "title": "ℹ️ 系統狀態",
                 "class": StatusPage,
-                "args": (),
+                "args": (self.api_client,),
             },
         ]
 
