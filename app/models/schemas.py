@@ -39,7 +39,7 @@ class MeetingBase(CustomBaseModel):
     meeting_password: Optional[str] = Field(None, max_length=50, description="會議密碼")
     meeting_layout: LayoutType = Field(..., description="會議佈局")
     creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
-    creator_email: str = Field(..., max_length=100, description="會議建立者 Email")
+    creator_email: Optional[str] = Field(..., max_length=100, description="會議建立者 Email")
     start_time: datetime = Field(..., description="排程開始時間")
     end_time: datetime = Field(..., description="排程結束時間")
     repeat: bool = Field(False, description="是否重複排程")

@@ -1,10 +1,12 @@
-import yaml
 import atexit
-import queue
 import logging
 import logging.config
+import queue
 from logging import handlers
 from pathlib import Path
+
+import yaml
+
 from .config import config
 
 
@@ -14,6 +16,8 @@ class EmailFilter(logging.Filter):
 
 
 class AsyncSMTPHandler(handlers.QueueHandler):
+    internal_handler: handlers.SMTPHandler
+
     def __init__(self, **kwargs):
         # 這些 key 會對應到你在 YAML 裡寫的欄位
         smtp_kwargs = {
@@ -37,6 +41,27 @@ class AsyncSMTPHandler(handlers.QueueHandler):
         atexit.register(self.listener.stop)
 
 
+def update_logger_sender(new_email: str, new_password: str):
+    """
+    針對 YAML 定義的 'email' handler 進行動態修改
+    """
+    target_logger = logging.getLogger("app")
+
+    for handler in target_logger.handlers:
+        if isinstance(handler, AsyncSMTPHandler):
+            inner = handler.internal_handler
+
+            if isinstance(inner, handlers.SMTPHandler):
+                inner.fromaddr = new_email
+                inner.toaddrs = [new_email]
+                setattr(inner, "credentials", (new_email, new_password))
+
+                logging.info(f"已成功修改內部的 SMTPHandler 寄件人: {new_email}")
+                return
+
+    logging.warning("在 'app' logger 中找不到名為 email 的 AsyncSMTPHandler")
+
+
 def setup_logger():
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
@@ -50,9 +75,9 @@ def setup_logger():
 
     if "email" in logging_dict["handlers"]:
         email_h = logging_dict["handlers"]["email"]
-        email_h["fromaddr"] = config.EMAIL_USER
-        email_h["toaddrs"] = [config.EMAIL_USER]
-        email_h["credentials"] = [config.EMAIL_USER, config.EMAIL_APP_PASSWORD]
+        email_h["fromaddr"] = config.DEFAULT_USER_EMAIL
+        email_h["toaddrs"] = [config.DEFAULT_USER_EMAIL]
+        email_h["credentials"] = [config.DEFAULT_USER_EMAIL, config.EMAIL_APP_PASSWORD]
 
     logging.config.dictConfig(logging_dict)
 

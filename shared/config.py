@@ -1,14 +1,17 @@
 import platform
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 from typing import Literal
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 IS_WINDOWS: bool = platform.system() == "Windows"
 
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # Base Configuration
@@ -54,12 +57,22 @@ class Config(BaseSettings):
 
     ZOOM_APP_PATH: str = Field(
         default=r"C:\Users\linlab\AppData\Roaming\Zoom\bin\Zoom.exe",
-        description="Zoom的安裝路徑"
+        description="Zoom的安裝路徑",
+    )
+
+    ZOOM_SCENE_NAME: str = Field(
+        ...,
+        description="OBS中為ZOOM設定的場景名稱，最好先設定好所有參數",
     )
 
     WEBEX_APP_PATH: str = Field(
         default=r"C:\Users\linlab\AppData\Local\CiscoSparkLauncher\CiscoCollabHost.exe",
         description="Webex 的安裝路徑。",
+    )
+
+    WEBEX_SCENE_NAME: str = Field(
+        ...,
+        description="OBS中為ZOOM設定的場景名稱，最好先設定好所有參數",
     )
 
     # Webex UI Points
@@ -79,7 +92,7 @@ class Config(BaseSettings):
     )
 
     # Email Configuration
-    EMAIL_USER: str = Field(
+    DEFAULT_USER_EMAIL: str = Field(
         ...,
         description="電子郵件帳號。",
     )
@@ -97,3 +110,4 @@ class Config(BaseSettings):
 
 
 config = Config()
+WAIT_TIMEOUT = config.MEETING_WAIT_TIMEOUT_IN_SECOND

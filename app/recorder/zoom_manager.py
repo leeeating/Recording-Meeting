@@ -4,7 +4,7 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
-from shared.config import config
+from shared.config import WAIT_TIMEOUT
 
 if sys.platform == "win32":
     from pywinauto import Desktop
@@ -15,9 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class ZoomManager:
-    WAIT_TIMEOUT = config.MEETING_WAIT_TIMEOUT_IN_SECOND
-    WAIT_TIMEOUT = 30
-
     def __init__(
         self,
         meeting_name: str,
@@ -56,10 +53,10 @@ class ZoomManager:
 
         with action("[連線中]等待連線中", logger, is_critical=True):
             connect_window = Desktop(backend="uia").window(title_re=".*連線中.*")
-            # connect_window.set_focus()
+            connect_window.set_focus()
             connect_window.wait_not(
                 "exists",
-                timeout=self.WAIT_TIMEOUT,
+                timeout=WAIT_TIMEOUT,
                 retry_interval=1,
             )
 
@@ -70,7 +67,7 @@ class ZoomManager:
             )
             main_window.wait_not(
                 "exists",
-                timeout=self.WAIT_TIMEOUT,
+                timeout=WAIT_TIMEOUT,
                 retry_interval=1,
             )
 

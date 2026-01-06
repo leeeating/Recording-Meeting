@@ -1,18 +1,9 @@
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-# 引入核心配置和例外
 from app.core.database import get_db
-from app.core.scheduler import scheduler
-
-# 引入服務層
 from app.services.meeting_service import MeetingService
 from app.services.task_service import TaskService
-
-
-def get_scheduler_instance() -> BackgroundScheduler:
-    return scheduler
 
 
 def get_task_service(

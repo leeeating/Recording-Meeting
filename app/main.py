@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    scheduler.shutdown()
     database_engine.dispose()
     logger.info("Database engine disposed.")
 

@@ -32,7 +32,7 @@ class OBSManager:
         if self._check_exist():
             return
 
-        with action("啟動 OBS", logger):
+        with action("啟動 OBS", logger, is_critical=True):
             subprocess.Popen(
                 [str(self.obs_path)],
                 cwd=Path(self.obs_path).resolve().parent,
@@ -41,7 +41,7 @@ class OBSManager:
         self._check_mode()
 
     def connect(self, retries=5, timeout=5):
-        with action("連線 OBS", logger):
+        with action("連線 OBS", logger, is_critical=True):
             for n in range(retries):
                 try:
                     self.client = obs.ReqClient(
@@ -106,7 +106,7 @@ class OBSManager:
                     overlay=True,
                 )
         else:
-            logger.warning("找不到webex會議視窗，可能錄到其他視窗")
+            logger.error("找不到webex會議視窗，可能錄到其他視窗")
 
     def disconnect(self):
         if self.client:
@@ -119,7 +119,7 @@ class OBSManager:
             )
 
     def start_recording(self):
-        with action("啟動錄影", logger):
+        with action("啟動錄影", logger, is_critical=True):
             self.check_connect()
             status = self.client.get_record_status()
 

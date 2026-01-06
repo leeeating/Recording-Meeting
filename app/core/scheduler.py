@@ -9,7 +9,7 @@ JOB_STORES = {"default": SQLAlchemyJobStore(url=config.SCHEDULER_DB_URL)}
 EXECUTORS = {"default": ThreadPoolExecutor(20)}
 
 
-def create_scheduler() -> BackgroundScheduler:
+def get_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler(
         jobstores=JOB_STORES,
         executors=EXECUTORS,
@@ -22,4 +22,4 @@ def create_scheduler() -> BackgroundScheduler:
     return scheduler
 
 
-scheduler = create_scheduler()
+scheduler = get_scheduler()

@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 
 from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
 from frontend.services.api_client import ApiClient
+from shared.config import config
 
 from .base_page import BasePage
 from .page_config import ALIGNLEFT, ALIGNRIGHT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
@@ -181,12 +182,12 @@ class MeetingFormWidget(QGroupBox):
         self.meeting_type.setMinimumWidth(200)
 
         self.meeting_url = CustomLineEdit(
-            placeholder="請輸入會議連結", width=300, herizontal_stretch=True
+            placeholder="Optional", width=300, herizontal_stretch=True
         )
-        self.room_id = CustomLineEdit(placeholder="請輸入會議識別 ID")
-        self.meeting_password = CustomLineEdit(placeholder="請輸入會議密碼")
-        self.repeat = QCheckBox("啟用重複排程")  # 加上 Label 比較清楚
-        self.repeat_unit = CustomLineEdit(placeholder="請輸入重複週期(天)")
+        self.room_id = CustomLineEdit(placeholder="Optional")
+        self.meeting_password = CustomLineEdit(placeholder="Optional")
+        self.repeat = QCheckBox("Optional")
+        self.repeat_unit = CustomLineEdit(placeholder="Optional")
         self.repeat_end_date = fixed_width_height(QDateTimeEdit())
         self.repeat_end_date.setCalendarPopup(True)
         self.repeat_end_date.setDisplayFormat("yyyy/MM/dd")
@@ -199,7 +200,7 @@ class MeetingFormWidget(QGroupBox):
         self.empty.setFixedHeight(35)
 
         self.creator_name = CustomLineEdit(placeholder="請輸入建立者名稱")
-        self.creator_email = CustomLineEdit(placeholder="請輸入建立者 Email")
+        self.creator_email = CustomLineEdit(placeholder="Optional")
         self.start_time = DateTimeInputGroup(0)
         self.end_time = DateTimeInputGroup(1)
 
@@ -227,7 +228,7 @@ class MeetingFormWidget(QGroupBox):
         left_l.addRow("會議URL:", self.meeting_url)
         left_l.addRow("會議識別 ID:", self.room_id)
         left_l.addRow("會議密碼:", self.meeting_password)
-        left_l.addRow("是否重複排程:", self.repeat)
+        left_l.addRow("是否重複:", self.repeat)
         left_l.addRow("重複週期(天):", self.repeat_unit)
         left_l.addRow("結束日期:", self.repeat_end_date)
 
@@ -319,13 +320,15 @@ class MeetingFormWidget(QGroupBox):
             if data["repeat_unit"] is None:
                 data["repeat_unit"] = 0
 
+            if data["creator_email"] is None:
+                data["creator_email"] = config.DEFAULT_USER_EMAIL
+
             validated_schema = MeetingCreateSchema.model_validate(data)
 
             self.save_requested.emit(validated_schema)
             self._clear_form()
 
         except ValidationError as e:
-            # 優化錯誤顯示格式
             error_msg = "\n".join([f"{err['loc']}: {err['msg']}" for err in e.errors()])
             QMessageBox.warning(self, "資料錯誤", f"請檢查以下欄位：\n{error_msg}")
 
@@ -339,7 +342,7 @@ class MeetingFormWidget(QGroupBox):
         try:
             start_dt = self.start_time.get_datetime()
 
-            new_end_dt = start_dt + timedelta(hours=1)
+            new_end_dt = start_dt + timedelta(minutes=1)
 
             self.end_time.set_datetime(new_end_dt)
 

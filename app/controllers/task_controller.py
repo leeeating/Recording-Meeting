@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, status
 from typing import List
 
-from app.services.meeting_service import TaskService
+from fastapi import APIRouter, Depends, status
+
+from app.controllers.dependencies import get_task_service
+from app.core.scheduler import scheduler
 from app.models.schemas import (
     TaskQuerySchema,
     TaskResponseSchema,
 )
-from app.controllers.dependencies import get_task_service
+from app.services.meeting_service import TaskService
 
-# 這裡維持 prefix="/tasks"，但在 main.py 註冊時請注意不要重複前綴
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
@@ -64,3 +65,20 @@ async def delete_task_endpoint(
 ):
     service.delete_task(task_id)
     return None
+
+
+@router.get("/scheduler/jobs")
+async def list_jobs():
+    # 這裡是在後端進程執行，所以能抓到真正的 jobs
+    jobs = scheduler.get_jobs()
+    return [
+        {
+            "id": job.id,
+            "name": job.name,
+            "next_run_time": job.next_run_time.strftime("%Y-%m-%d %H:%M")
+            if job.next_run_time
+            else "已暫停",
+            "trigger": str(job.trigger),
+        }
+        for job in jobs
+    ]

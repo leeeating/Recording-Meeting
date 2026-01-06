@@ -1,9 +1,11 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QPushButton,
     QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
 )
 
@@ -16,12 +18,12 @@ class StatusPage(BasePage):
     def __init__(self, api_client: ApiClient):
         super().__init__()
         self.api_client = api_client
+        self.header = ["任務 ID", "會議名稱", "下次執行時間", "參數備註"]
 
         self._create_widgets()
         self._setup_layout()
         self._connect_signals()
 
-        # 設定自動更新定時器 (5秒更新一次)
         self._check_backend_status()
 
     def _create_widgets(self):
@@ -35,10 +37,9 @@ class StatusPage(BasePage):
         self.status_text = QLabel("正在初始化...")
 
         # 任務表格
-        self.job_table = QTableWidget(0, 3)
-        self.job_table.setHorizontalHeaderLabels(
-            ["任務 ID", "下次執行時間", "參數備註"]
-        )
+        self.job_table = QTableWidget()
+        self.job_table.setColumnCount(len(self.header))
+        self.job_table.setHorizontalHeaderLabels(self.header)
         self.job_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
@@ -78,6 +79,7 @@ class StatusPage(BasePage):
             success_msg="後端執行中",
             callback=self._update_ui_state,
         )
+        self.load_scheduler_data()
 
     def _update_ui_state(self, online: bool):
         """更新 UI 視覺狀態"""
@@ -85,3 +87,44 @@ class StatusPage(BasePage):
         msg = "系統連線中" if online else "伺服器離線"
         self.status_dot.setStyleSheet(f"color: {color}; font-size: 18px;")
         self.status_text.setText(msg)
+
+    def load_scheduler_data(self):
+        """1. 發送非同步請求獲取排程資料"""
+        self.run_request(
+            self.api_client.get_scheduler_data,
+            callback=self._fill_table_data,
+        )
+
+    def _fill_table_data(self, jobs: list):
+        """2. 真正將資料填入表格的回呼函式"""
+
+        self.job_table.setRowCount(0)
+        if not jobs:
+            print("DEBUG: 資料清單為空")
+            return
+
+        self.job_table.setRowCount(len(jobs))
+        for row, job in enumerate(jobs):
+            # 準備各個欄位的資料
+            display_data = [
+                str(job.get("id", "")),
+                str(job.get("name", "未命名任務")),
+                str(job.get("next_run_time", "已暫停")),  # 整合暫停邏輯
+                str(job.get("trigger", "")),
+            ]
+
+            for col, text in enumerate(display_data):
+                item = QTableWidgetItem(text)
+
+                item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+
+                # 優化 2: 文字置中對齊
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # 優化 3: 如果是「已暫停」，文字顏色變灰
+                if text == "已暫停":
+                    from PyQt6.QtGui import QColor
+
+                    item.setForeground(QColor("gray"))
+
+                self.job_table.setItem(row, col, item)

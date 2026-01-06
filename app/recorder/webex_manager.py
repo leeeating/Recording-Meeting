@@ -1,15 +1,16 @@
-import sys
 import logging
 import re
 import subprocess
+import sys
 import time
 import webbrowser
 
 import pyautogui
+
 if sys.platform == "win32":
     from pywinauto import Desktop
 
-from shared.config import config
+from shared.config import WAIT_TIMEOUT, config
 
 from .utils import action, copy_paste
 
@@ -17,8 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class WebexManager:
-    WAIT_TIMEOUT = 30  # seconds
-
     def __init__(
         self,
         meeting_name: str,
@@ -117,7 +116,7 @@ class WebexManager:
         Webex中多數元件有相同屬性，難以直接辨認，使用直接點擊指定座標。
         """
         # time.sleep(5)
-        with action("點擊[版面配置]按鈕", logger):
+        with action("點擊[版面配置]按鈕", logger, is_critical=True):
             meeting_window = Desktop(backend="uia").window(
                 title_re=".*(meeting|Personal Room).*"
             )
@@ -129,8 +128,9 @@ class WebexManager:
                 control_type="Button",
                 found_index=0,
             )
+
             try:
-                btn.wait("ready", timeout=self.WAIT_TIMEOUT)
+                btn.wait("ready", timeout=WAIT_TIMEOUT)
                 btn.click_input()
 
             except Exception as e:

@@ -239,6 +239,7 @@ class TaskService:
             # 1. Start Job
             self.scheduler.add_job(
                 start_recording,
+                name=meeting_name,
                 args=[task_id],
                 trigger="date",
                 run_date=start_time,
@@ -248,6 +249,7 @@ class TaskService:
             # 2. End Job
             self.scheduler.add_job(
                 end_recording,
+                name=meeting_name,
                 args=[task_id],
                 trigger="date",
                 run_date=end_time,

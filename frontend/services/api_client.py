@@ -2,9 +2,10 @@ import logging
 from typing import Callable
 
 import requests
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 from requests.exceptions import RequestException
 
+from app.core.scheduler import scheduler
 from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class ApiClient:
         self.timeout = 10
         self.meeting_router = f"{self.base_url}/meeting"
         self.task_router = f"{self.base_url}/tasks"
+        self.schduler = scheduler
 
     def create_meeting(self, data: MeetingCreateSchema):
         """專門處理「創建會議」的網路通訊"""
@@ -84,35 +86,47 @@ class ApiClient:
             logger.warning("API Request Failed")
             return False
 
+    def get_scheduler_data(self):
+        """修正：透過網路 API 獲取排程，而不是直接讀取物件"""
+        logger.debug("從伺服器獲取排程資料...")
+        try:
+            url = f"{self.task_router}/scheduler/jobs"
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
 
-class ApiWorker(QThread):
+            return response.json()
+
+        except Exception as e:
+            logger.error(f"獲取排程資料失敗: {e}")
+            return []
+
+
+class WorkerSignals(QObject):
+    success = pyqtSignal(object)
+    error = pyqtSignal(str)
+    finished = pyqtSignal()
+
+
+class ApiWorker(QRunnable):
     """
     Create new thread to handle API requests without blocking the GUI.
     """
-
-    success = pyqtSignal(object)
-    error = pyqtSignal(str)
 
     def __init__(self, api_func: Callable, *args, **kwargs):
         super().__init__()
         self.api_func: Callable = api_func
         self.args = args
         self.kwargs = kwargs
+        self.signal = WorkerSignals()
         self.func_name = getattr(api_func, "__name__", "UnknownFunc")
 
     def run(self):
-        logger.debug(
-            f"[Thread {self.currentThreadId()}] 開始執行背景任務: {self.func_name}"
-        )
+        logger.debug(f"開始執行背景任務: {self.func_name}")
         try:
             result = self.api_func(*self.args, **self.kwargs)
-            logger.debug(
-                f"[Thread {self.currentThreadId()}] 任務執行成功: {self.func_name}"
-            )
-            self.success.emit(result)
+            logger.debug(f"任務執行成功: {self.func_name}")
+            self.signal.success.emit(result)
 
         except Exception as e:
-            logger.exception(
-                f"[Thread {self.currentThreadId()}] 背景任務拋出異常 ({self.func_name})"
-            )
-            self.error.emit(str(e))
+            logger.exception(f"背景任務拋出異常 ({self.func_name})")
+            self.signal.error.emit(str(e))

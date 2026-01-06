@@ -1,5 +1,6 @@
 from functools import partial
 
+from PyQt6.QtCore import QThreadPool
 from PyQt6.QtWidgets import QWidget
 
 from frontend.GUI.events import BottomBar
@@ -25,7 +26,7 @@ class BasePage(QWidget):
 
         worker = ApiWorker(api_func, *args, **kwargs)
 
-        worker.success.connect(
+        worker.signal.success.connect(
             partial(
                 self._on_success,
                 success_msg=success_msg,
@@ -33,10 +34,14 @@ class BasePage(QWidget):
                 lock_widget=lock_widget,
             )
         )
-        worker.error.connect(partial(self._on_error, lock_widget=lock_widget))
+        worker.signal.error.connect(partial(self._on_error, lock_widget=lock_widget))
 
-        worker.start()
-        self._worker_ref = worker
+        pool = QThreadPool.globalInstance()
+
+        if pool is not None:
+            pool.start(worker)
+        else:
+            raise RuntimeError("無法獲取 QThreadPool 實例")
 
     def _on_success(self, result, success_msg, callback, lock_widget):
         BottomBar.update_status.emit(f"✅ {success_msg}", 2)

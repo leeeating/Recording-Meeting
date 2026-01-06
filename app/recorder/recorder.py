@@ -10,6 +10,7 @@ from app.models.enums import TaskStatus
 from app.recorder.obs_manager import OBSManager
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
+from shared.config import config
 
 from .utils import action, kill_process
 
@@ -17,8 +18,8 @@ logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
 
 SCENE_NAME_MAP = {
-    "WEBEX": "WEBEX_APP",
-    "ZOOM": "ZOOM_APP",
+    "WEBEX": config.WEBEX_SCENE_NAME,
+    "ZOOM": config.ZOOM_SCENE_NAME,
 }
 
 PROCESS_MAP = {
@@ -47,23 +48,29 @@ def start_recording(task_id: int):
                 )
                 raise NotFoundError(f"找不到 Task {task_id}")
 
-            # obs_mgr.kill_obs_process_by_psutil()
-            # # obs_mgr.kill_obs_process_by_taskkill()
-            # time.sleep(1)
+            # TODO:
+            # if task.meeting.creator_email:
+            #     update_logger_sender(task.meeting.creator_email, "")
 
+            # Critical Action
             obs_mgr.launch_obs()
             time.sleep(1)
 
+            # Critical Action
             obs_mgr.connect()
             time.sleep(1)
 
             # get default scene and recording
             meeting_type = task.meeting.meeting_type.upper()
-            scene_name = SCENE_NAME_MAP[meeting_type]
-            obs_mgr.setup_obs_scene(scene_name=scene_name)
-            
-            # obs_mgr.start_recording()
+            scene_name = SCENE_NAME_MAP.get(meeting_type)
 
+            if scene_name:
+                obs_mgr.setup_obs_scene(scene_name=scene_name)
+            else:
+                logger.error("設定場景錯誤", extra={"send_email": True})
+
+            # Critical Action
+            # obs_mgr.start_recording()
 
             # ----- status update -----
             task.status = TaskStatus.RECORDING
@@ -89,7 +96,8 @@ def start_recording(task_id: int):
             else:
                 # TODO: send email
                 logger.error(
-                    "OBS正常啟動，但會議軟體啟動失敗", extra={"send_email": True}
+                    "OBS正常啟動，但Meeting Menager初始化失敗",
+                    extra={"send_email": True},
                 )
                 raise ValueError("Meeting Manager is None")
 
@@ -100,9 +108,8 @@ def start_recording(task_id: int):
 
         except Exception as e:
             db.rollback()
-            logger.error(
+            logger.exception(
                 f"執行 start_recording 失敗 (ID: {task_id}): {str(e)}",
-                exc_info=True,
                 extra={"send_email": True},
             )
             if task:
