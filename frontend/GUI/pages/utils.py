@@ -134,6 +134,24 @@ class CustomLineEdit(QLineEdit):
         self.setSizePolicy(her, ver)
 
 
+class EmptyLabel(QLabel):
+    """
+    用於佔位的空白色塊，可設定固定寬高
+    """
+
+    def __init__(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        if width:
+            self.setMinimumWidth(width)
+        if height:
+            self.setMinimumHeight(height)
+
+
 def fixed_width_height(
     widget: T,
     width: int = 200,

@@ -76,7 +76,7 @@ class StatusPage(BasePage):
     def _check_backend_status(self):
         self.run_request(
             self.api_client.get_backend_status,
-            success_msg="後端執行中",
+            name="檢查後端狀態",
             callback=self._update_ui_state,
         )
         self.load_scheduler_data()
@@ -92,6 +92,7 @@ class StatusPage(BasePage):
         """1. 發送非同步請求獲取排程資料"""
         self.run_request(
             self.api_client.get_scheduler_data,
+            name="載入排程資料",
             callback=self._fill_table_data,
         )
 

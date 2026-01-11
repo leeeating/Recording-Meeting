@@ -27,6 +27,7 @@ from .page_config import ALIGNLEFT, ALIGNRIGHT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
 from .utils import (
     CustomLineEdit,
     DateTimeInputGroup,
+    EmptyLabel,
     create_form_block,
     fixed_width_height,
     get_widget_value,
@@ -101,7 +102,7 @@ class MeetingManagerPage(BasePage):
                 self.api_client.update_meeting,
                 self.active_meeting_id,
                 meeting_schema,
-                success_msg="會議更新成功",
+                name="更新會議",
                 callback=self._refresh_list,
                 lock_widget=self.form_widget,
             )
@@ -111,7 +112,7 @@ class MeetingManagerPage(BasePage):
             self.run_request(
                 self.api_client.create_meeting,
                 meeting_schema,
-                success_msg="新會議已建立",
+                name="建立新會議",
                 callback=self._refresh_list,
                 lock_widget=self.form_widget,
             )
@@ -120,7 +121,7 @@ class MeetingManagerPage(BasePage):
         """獲取所有會議資料"""
         self.run_request(
             self.api_client.get_all_meetings,
-            success_msg="資料庫同步完成",
+            name="獲得資料清單",
             callback=self._on_fetch_data_loaded,
         )
 
@@ -196,10 +197,10 @@ class MeetingFormWidget(QGroupBox):
         # Right column
         self.meeting_layout = fixed_width_height(QComboBox())
 
-        self.empty = QLabel("")
-        self.empty.setFixedHeight(35)
+        self.empty = EmptyLabel(height=35)
 
         self.creator_name = CustomLineEdit(placeholder="請輸入建立者名稱")
+        # 保留變數資訊，刪除UI渲染
         self.creator_email = CustomLineEdit(placeholder="Optional")
         self.start_time = DateTimeInputGroup(0)
         self.end_time = DateTimeInputGroup(1)
@@ -223,22 +224,21 @@ class MeetingFormWidget(QGroupBox):
         two_columns_layout.setContentsMargins(0, 0, 0, 0)
         two_columns_layout.setSpacing(self.SPACING)
 
+        right_w, right_l = create_form_block()
+        right_l.addRow("會議URL:", self.meeting_url)
+        right_l.addRow("會議識別 ID:", self.room_id)
+        right_l.addRow("會議密碼:", self.meeting_password)
+        right_l.addRow("是否重複:", self.repeat)
+        right_l.addRow("重複週期(天):", self.repeat_unit)
+        right_l.addRow("結束日期\n(Optional):", self.repeat_end_date)
+
         left_w, left_l = create_form_block()
         left_l.addRow("會議類型:", self.meeting_type)
-        left_l.addRow("會議URL:", self.meeting_url)
-        left_l.addRow("會議識別 ID:", self.room_id)
-        left_l.addRow("會議密碼:", self.meeting_password)
-        left_l.addRow("是否重複:", self.repeat)
-        left_l.addRow("重複週期(天):", self.repeat_unit)
-        left_l.addRow("結束日期:", self.repeat_end_date)
-
-        right_w, right_l = create_form_block()
-        right_l.addRow("會議佈局:", self.meeting_layout)
-        right_l.addRow("", self.empty)
-        right_l.addRow("建立者名稱:", self.creator_name)
-        right_l.addRow("建立者 Email:", self.creator_email)
-        right_l.addRow("起始時間:", self.start_time)
-        right_l.addRow("結束時間:", self.end_time)
+        left_l.addRow("會議佈局:", self.meeting_layout)
+        left_l.addRow("建立者名稱:", self.creator_name)
+        # left_l.addRow("建立者 Email:", self.creator_email)
+        left_l.addRow("起始時間:", self.start_time)
+        left_l.addRow("結束時間:", self.end_time)
 
         two_columns_layout.addWidget(left_w, stretch=1)
         two_columns_layout.addWidget(right_w, stretch=1)
