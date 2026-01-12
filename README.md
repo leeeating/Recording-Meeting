@@ -69,7 +69,9 @@ B. 在**桌面**建立兩個`.bat`檔案，分別寫入以下指令，以後直�
 
 ## Configuration
 
-此專案需要自動寄送 Gemail，因此需要事先設定 Gmail 帳號及密碼，設定如下。
+### Email
+
+此專案需要自動寄送 Gemail，因此需要事先設定 Gmail 帳號及密碼，設定步驟如下。
 
 1. 進入帳號管理頁面
    ![alt text](readme_figure/account_manager.png)
@@ -79,7 +81,7 @@ B. 在**桌面**建立兩個`.bat`檔案，分別寫入以下指令，以後直�
 
 3. 設定並紀錄`應用程式密碼`
 
-   ![alt text](image.png)
+   ![alt text](readme_figure/setting.png)
 
 4. 寫入`.env`檔
 
@@ -87,3 +89,14 @@ B. 在**桌面**建立兩個`.bat`檔案，分別寫入以下指令，以後直�
 DEFAULT_USER_EMAIL="account@gmail.com"
 EMAIL_APP_PASSWORD="password"
 ```
+
+### Webex
+
+在 webex 中模式中需要設定滑鼠點擊位置，在其他電腦設定時需要下載[**Accessibility Insights For Windows**](https://accessibilityinsights.io/downloads/)。
+
+先隨便開啟一個會議，將整個視窗最大化後，再將滑鼠游標移到三個不同的 Layout 上，紀錄程式中顯示的座標(直接複製貼上原始字串，不用額外處理)。
+最後貼到`.env`檔中對應的變數中(`WEBEX_GRID_POINT`, `WEBEX_STACKED_POINT`, `WEBEX_SIDE_BY_SIDE_POINT`)。
+
+p.s.: 滑鼠移動到元件上面，需要顯示藍色外框才算成功
+
+![alt text](readme_figure/points_setting.png)
