@@ -23,7 +23,7 @@ from frontend.services.api_client import ApiClient
 from shared.config import config
 
 from .base_page import BasePage
-from .page_config import ALIGNLEFT, ALIGNRIGHT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
+from .page_config import ALIGNLEFT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
 from .utils import (
     CustomLineEdit,
     DateTimeInputGroup,
@@ -207,6 +207,9 @@ class MeetingFormWidget(QGroupBox):
 
         self.save_button = QPushButton("💾 提交變更")
         self.save_button.setMinimumHeight(45)
+        # Debug button: 設定開始時間為現在 + 30 秒（方便測試）
+        self.debug_button = QPushButton("🐞 設定開始時間 +30秒")
+        self.debug_button.setMinimumHeight(45)
         self._update_meeting_layout(self.meeting_type.currentText())
 
     def _layout_ui(self):
@@ -244,12 +247,20 @@ class MeetingFormWidget(QGroupBox):
         two_columns_layout.addWidget(right_w, stretch=1)
 
         main_layout.addWidget(two_columns_widget)
-        main_layout.addWidget(self.save_button, alignment=ALIGNRIGHT)
+
+        # Buttons layout: debug + save
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.debug_button)
+        btn_layout.addWidget(self.save_button)
+
+        main_layout.addLayout(btn_layout)
 
     def _connect_signals(self):
         self.save_button.clicked.connect(self._collect_date_and_emit_signal)
         self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
         self.start_time.changed.connect(self._sync_end_time)
+        self.debug_button.clicked.connect(self._set_debug_start_time)
 
     def set_mode(self, is_create: bool):
         """切換建立/編輯模式的 UI 狀態"""
@@ -367,6 +378,26 @@ class MeetingFormWidget(QGroupBox):
             self.start_time.reset()
         if hasattr(self.end_time, "reset"):
             self.end_time.reset()
+
+    def _set_debug_start_time(self):
+        """
+        Debug helper: 設定 start_time 為現在 + 30 秒，並同步 end_time (+1 minute)
+        """
+        try:
+            now = datetime.now()
+            new_start = now + timedelta(seconds=30)
+            self.start_time.set_datetime(new_start)
+
+            # 如果 end_time 有 set_datetime，則同步為 start + 1 minute
+            try:
+                new_end = new_start + timedelta(minutes=1)
+                self.end_time.set_datetime(new_end)
+            except Exception:
+                # 若 end_time 沒有該方法，忽略
+                pass
+
+        except Exception as e:
+            logger.warning(f"設定 debug 開始時間失敗: {e}")
 
     def _update_meeting_layout(self, selected_type: str):
         options = MEETING_LAYOUT_OPTIONS.get(selected_type, [])
