@@ -129,3 +129,17 @@ class StatusPage(BasePage):
                     item.setForeground(QColor("gray"))
 
                 self.job_table.setItem(row, col, item)
+
+    def showEvent(self, a0):
+        """當頁面顯示時自動重新載入排程列表。
+
+        使用與 `QWidget.showEvent` 相同的參數名稱 (`a0`) 以避免覆寫簽名不相容的警告。
+        """
+        try:
+            super().showEvent(a0)
+        except Exception:
+            # 若父類別沒有實作或拋錯，仍要確保載入資料
+            pass
+
+        # 切換到此頁面時刷新列表
+        self.load_scheduler_data()
