@@ -33,7 +33,13 @@ class BasePage(QWidget):
                 lock_widget=lock_widget,
             )
         )
-        worker.signal.error.connect(partial(self._on_error, lock_widget=lock_widget))
+        worker.signal.error.connect(
+            partial(
+                self._on_error,
+                callback=callback,
+                lock_widget=lock_widget,
+            )
+        )
 
         pool = QThreadPool.globalInstance()
 
@@ -43,17 +49,19 @@ class BasePage(QWidget):
             raise RuntimeError("無法獲取 QThreadPool 實例")
 
     def _on_success(self, result, success_msg, callback, lock_widget):
-        BottomBar.update_status.emit(f"{success_msg}", 2)
+        self._on_request_complete(success_msg, result, callback, lock_widget)
+
+    def _on_error(self, err_msg, callback, lock_widget):
+        self._on_request_complete(err_msg, None, callback, lock_widget)
+    
+    def _on_request_complete(self, msg, result, callback, lock_widget):
+        """統一處理請求完成（成功或失敗）"""
+        BottomBar.update_status.emit(msg, 2)
         if lock_widget:
             lock_widget.setEnabled(True)
-
+        
         if callback:
             try:
                 callback(result)
             except TypeError:
                 callback()
-
-    def _on_error(self, err_msg, lock_widget):
-        BottomBar.update_status.emit(f"{err_msg}", 2)
-        if lock_widget:
-            lock_widget.setEnabled(True)

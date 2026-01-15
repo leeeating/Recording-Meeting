@@ -127,6 +127,11 @@ class MeetingManagerPage(BasePage):
 
     def _on_fetch_data_loaded(self, data_list: list[MeetingResponseSchema]):
         """處理 API 回傳的資料結構"""
+        if not data_list:
+            self.meeting_list = {}
+            self._update_list_data()
+            return
+        
         self.meeting_list = {str(m.id): m for m in data_list}
         self._update_list_data()
 

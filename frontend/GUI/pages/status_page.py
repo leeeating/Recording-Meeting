@@ -100,8 +100,9 @@ class StatusPage(BasePage):
         """2. 真正將資料填入表格的回呼函式"""
 
         self.job_table.setRowCount(0)
-        if not jobs:
-            print("DEBUG: 資料清單為空")
+        
+        # 請求失敗 (None) 或空列表
+        if jobs is None or not jobs:
             return
 
         self.job_table.setRowCount(len(jobs))
