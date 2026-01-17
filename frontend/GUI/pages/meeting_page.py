@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 
 from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
 from frontend.services.api_client import ApiClient
-from shared.config import config
+from shared.config import DURATION, config
 
 from .base_page import BasePage
 from .page_config import ALIGNLEFT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
@@ -131,7 +131,7 @@ class MeetingManagerPage(BasePage):
             self.meeting_list = {}
             self._update_list_data()
             return
-        
+
         self.meeting_list = {str(m.id): m for m in data_list}
         self._update_list_data()
 
@@ -339,6 +339,9 @@ class MeetingFormWidget(QGroupBox):
             if data["creator_email"] is None:
                 data["creator_email"] = config.DEFAULT_USER_EMAIL
 
+            if data["creator_name"] is None:
+                data["creator_name"] = "test"
+
             validated_schema = MeetingCreateSchema.model_validate(data)
 
             self.save_requested.emit(validated_schema)
@@ -358,7 +361,7 @@ class MeetingFormWidget(QGroupBox):
         try:
             start_dt = self.start_time.get_datetime()
 
-            new_end_dt = start_dt + timedelta(minutes=1)
+            new_end_dt = start_dt + timedelta(minutes=DURATION)
 
             self.end_time.set_datetime(new_end_dt)
 
@@ -384,26 +387,6 @@ class MeetingFormWidget(QGroupBox):
         if hasattr(self.end_time, "reset"):
             self.end_time.reset()
 
-    def _set_debug_start_time(self):
-        """
-        Debug helper: 設定 start_time 為現在 + 30 秒，並同步 end_time (+1 minute)
-        """
-        try:
-            now = datetime.now()
-            new_start = now + timedelta(seconds=30)
-            self.start_time.set_datetime(new_start)
-
-            # 如果 end_time 有 set_datetime，則同步為 start + 1 minute
-            try:
-                new_end = new_start + timedelta(minutes=1)
-                self.end_time.set_datetime(new_end)
-            except Exception:
-                # 若 end_time 沒有該方法，忽略
-                pass
-
-        except Exception as e:
-            logger.warning(f"設定 debug 開始時間失敗: {e}")
-
     def _update_meeting_layout(self, selected_type: str):
         options = MEETING_LAYOUT_OPTIONS.get(selected_type, [])
         self.meeting_layout.clear()
@@ -413,3 +396,18 @@ class MeetingFormWidget(QGroupBox):
         else:
             self.meeting_layout.addItem("無可用佈局")
             self.meeting_layout.setEnabled(False)
+
+    def _set_debug_start_time(self):
+        """
+        Debug helper: 設定 start_time 為現在 + 30 秒，並同步 end_time
+        """
+
+        try:
+            now = datetime.now()
+            new_start = now + timedelta(seconds=30)
+            self.start_time.set_datetime(new_start)
+            new_end = new_start + timedelta(minutes=DURATION)
+            self.end_time.set_datetime(new_end)
+
+        except Exception as e:
+            logger.warning(f"設定 debug 開始時間失敗: {e}")

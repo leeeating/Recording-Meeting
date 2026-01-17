@@ -17,6 +17,11 @@ class Config(BaseSettings):
     # Base Configuration
     PROJECT_NAME: str = "Meeting-Recorder"
 
+    # envronment
+    ENV: Literal["prod", "dev"] = Field(
+        default="dev", description="環境設定，先以測試跟生產為主，日後可依需求增加"
+    )
+
     # Database Configuration
     MEETING_DB_URL: str = Field(
         ...,
@@ -108,6 +113,13 @@ class Config(BaseSettings):
         description="等待會議開始的超時時間（秒）。",
     )
 
+    # test configurtion
+    RECORDING_DURATION_IN_MINUTE: int = Field(
+        default=1, description="測試時的錄影設定時間"
+    )
+
 
 config = Config()
+
 WAIT_TIMEOUT = config.MEETING_WAIT_TIMEOUT_IN_SECOND
+DURATION = config.RECORDING_DURATION_IN_MINUTE
