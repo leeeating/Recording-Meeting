@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from typing import List
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session, joinedload
@@ -16,6 +17,8 @@ from app.models.schemas import TaskQuerySchema, TaskResponseSchema
 from ..recorder.recorder import end_recording, start_recording
 
 task_service_logger = logging.getLogger(__name__)
+
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 
 class TaskService:
@@ -40,9 +43,6 @@ class TaskService:
         根據 Meeting ORM 實例，創建一個或多個 Task 記錄。
         這是 MeetingService 協調 TaskService 的入口點。
         """
-        self.logger.info(
-            f"Creating tasks for Meeting ID {meeting.id} (Repeat: {meeting.repeat})"
-        )
 
         execute_time = self._calculate_execute_time(meeting)
         created_tasks: list[TaskORM] = []
@@ -113,6 +113,7 @@ class TaskService:
 
         return TaskResponseSchema.model_validate(task)
 
+    # FIXME:
     # ----- Update Methods -----
     def update_task(
         self,
@@ -130,7 +131,10 @@ class TaskService:
         for task in tasks:
             self.delete_task(task.id)
 
-        return self.create_task(meeting)
+        tasks = self.create_task(meeting)
+
+        for task in tasks:
+            self.add_job_to_scheduler(task_id=task.id)
 
     @deprecated("直接在start / end recording function中更新status")
     def update_task_status(
@@ -205,7 +209,7 @@ class TaskService:
                 # 檢查 Job 是否存在，若存在則移除
                 if self.scheduler.get_job(job_id):
                     self.scheduler.remove_job(job_id)
-                    self.logger.info(f"Successfully removed job ID {job_id}.")
+                    self.logger.info(f"Successfully removed job ID: {job_id}.")
 
             except Exception as e:
                 # 這裡應只捕獲 apscheduler 內部錯誤 (如 Job 仍在運行)
@@ -281,10 +285,14 @@ class TaskService:
         curr_start = meeting.start_time
         diff = meeting.end_time - meeting.start_time
         interval = timedelta(days=meeting.repeat_unit)
-        now_time = datetime.now()
+        now_time = datetime.now(TAIPEI_TZ)
+        self.logger.debug(f"{curr_start.tzinfo}, {meeting.repeat_end_date.tzinfo}")
         while curr_start <= meeting.repeat_end_date:
             if curr_start >= now_time:
                 all_times.append((curr_start, curr_start + diff))
-                curr_start += interval
+            curr_start += interval
+
+            if meeting.repeat_unit <= 0:
+                break
 
         return all_times

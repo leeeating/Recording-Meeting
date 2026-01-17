@@ -44,7 +44,10 @@ class MeetingService:
             tasks = self.task_service.create_task(meeting=meeting)
             self.db.commit()
 
-            self.logger.info(f"Meeting [{meeting.meeting_name}] create successfully.")
+            tasks_id = [task.id for task in tasks]
+            self.logger.info(
+                f"Creating Tasks ID: {tasks_id} for Meeting ID {meeting.id})"
+            )
 
             for task in tasks:
                 self.task_service.add_job_to_scheduler(task_id=task.id)
@@ -106,7 +109,7 @@ class MeetingService:
             self.logger.error(f"Cannot update: Meeting ID {meeting_id} not found.")
             raise NotFoundError(detail=f"Meeting ID {meeting_id} not found.")
 
-        updates = data.model_dump(exclude_unset=True)
+        updates_data = MeetingORM(**data.model_dump(exclude_unset=True))
 
         columns_with_time = [
             "start_time",
@@ -116,14 +119,14 @@ class MeetingService:
             "repeat_end_date",
         ]
         has_changes = False
-        for key, value in updates.items():
-            if (hasattr(meeting, key)) and (getattr(meeting, key) != value):
+        for key, value in updates_data.items():
+            if (key in columns_with_time) and (getattr(meeting, key) != value):
                 setattr(meeting, key, value)
                 has_changes = True
-                if key in columns_with_time:
-                    self.task_service.update_task(meeting)
 
         if has_changes:
+            self.task_service.update_task(meeting)
+
             try:
                 self.db.commit()
                 self.db.refresh(meeting)
