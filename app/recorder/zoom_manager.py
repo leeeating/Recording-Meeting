@@ -36,6 +36,13 @@ class ZoomManager:
         Use URL schema to join Zoom meeting. \\
         And handle waiting room if exists. \\
         Wait up to **WAIT_TIMEOUT** seconds. It can setting in env file.
+
+        Detail Action:
+            ZOOM開啟URL Schemas - Critical Action
+            [連線中]等待連線中 - Critical Action
+            [Zoom Workplace]等待主持人允許 - Critical Action
+            [Zoom會議]按下檢視按鈕 - Error Action
+            [Zoom會議]選擇排版 - Error Action
         """
         if self.meeting_url is None and (
             self.password is None or self.meeting_id is None
@@ -51,9 +58,13 @@ class ZoomManager:
 
         time.sleep(2)
 
+
+        ## 在執行[等待連線中]、[等待主持人允許] 會因為執行權限的問題，出現偵測視窗失敗
+        ## 偵測失敗後，會導致Timeout檢查一起失敗，但不會跳出錯誤提醒
+        ## 目前使用[管理員權限]執行可以解決，但無法確保其他bug出現
         with action("[連線中]等待連線中", logger, is_critical=True):
             connect_window = Desktop(backend="uia").window(title_re=".*連線中.*")
-            connect_window.set_focus()
+            logger.debug(connect_window.exists())
             connect_window.wait_not(
                 "exists",
                 timeout=WAIT_TIMEOUT,
@@ -65,10 +76,10 @@ class ZoomManager:
                 title="Zoom Workplace",
                 class_name="zWaitingRoomWndClass",
             )
+            logger.debug(f"Zoom Workplace {main_window.exists()}")
             main_window.wait_not(
                 "exists",
                 timeout=WAIT_TIMEOUT,
-                retry_interval=1,
             )
 
         time.sleep(3)
@@ -87,14 +98,19 @@ class ZoomManager:
         #     meeting_window.set_focus()
         #     meeting_window.maximize()
 
+        meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
         with action("[Zoom會議]按下檢視按鈕", logger):
-            # detect layout button
-            meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
-            btn = meeting_window.child_window(
-                title="檢視",
-                control_type="Button",
-            )
-            btn.click_input()
+            meeting_window.wait("ready", timeout=10)
+            meeting_window.set_focus()
+
+            btn = meeting_window.child_window(title="檢視", control_type="Button")
+
+            if btn.exists(timeout=5):
+                btn.wait("visible", timeout=3)
+                try:
+                    btn.iface_invoke.Invoke()  # 邏輯點擊
+                except Exception:
+                    btn.click_input()  # 如果邏輯點擊失敗，再用物理點擊
 
         # time.sleep(1)
 
@@ -108,7 +124,7 @@ class ZoomManager:
             # Implement window maximization here will succeed
             meeting_window.maximize()
 
-        logger.info(f"Successfully changed layout to {self.layout}.")
+            logger.info(f"Successfully changed layout to {self.layout}.")
 
     # TODO:
     def _change_layout_by_autogui(self):
