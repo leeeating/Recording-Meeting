@@ -6,6 +6,7 @@ import time
 import webbrowser
 
 import pyautogui
+from typing_extensions import deprecated
 
 if sys.platform == "win32":
     from pywinauto import Desktop
@@ -37,6 +38,16 @@ class WebexManager:
     def join_meeting_and_change_layout(self):
         """
         執行整個加入會議的自動化流程
+
+        Detial Action :
+            啟動Webex應用程式 - Critical Action
+            按下[加入會議]按鈕，進入輸入頁面 - Critical Action
+            輸入URL - Critical Action
+            輸入ID/PW - Critical Action
+            按下[加入會議]按鈕 - Critical Action
+            點擊[版面配置]按鈕 - Critical Action
+            選擇排版 - Error Action
+            靜音 - Error Action
         """
         # 基礎驗證
         if self.meeting_url is None and (
@@ -49,7 +60,6 @@ class WebexManager:
 
         self._launch_webex()
         self._input_meeting_info()
-
         self._handle_waiting_room_and_change_layout()
 
     def _launch_webex(self):
@@ -65,11 +75,21 @@ class WebexManager:
             main_window = Desktop(backend="uia").window(
                 title="Webex", class_name="MainWindow"
             )
-            main_window.child_window(
+            logger.debug(main_window.exists())
+            main_window.set_focus()
+            btn = main_window.child_window(
                 title_re=" .*加入會議.*",
                 control_type="Button",
-            ).click_input()
+            )
 
+            if btn.exists(timeout=5):
+                btn.wait("visible", timeout=3)
+                try:
+                    btn.iface_invoke.Invoke()
+                except Exception:
+                    btn.click_input()
+
+    @deprecated("找不到webex url schema使用")
     def _launch_by_url(self):
         """
         使用內部 self.meeting_url 進入
@@ -113,7 +133,7 @@ class WebexManager:
     def _handle_waiting_room_and_change_layout(self):
         """
         處理進入會議後的版面切換
-        Webex中多數元件有相同屬性，難以直接辨認，使用直接點擊指定座標。
+        Webex中多數元件有相同屬性，難以用程式辨認，因此直接點擊指定座標。
         """
         # time.sleep(5)
         with action("點擊[版面配置]按鈕", logger, is_critical=True):
@@ -136,7 +156,7 @@ class WebexManager:
             except Exception as e:
                 raise TimeoutError(f"未出現[版面配置]，因為等待主持人允許超時, {e}")
 
-        with action(f"點擊{self.layout.upper()}", logger):
+        with action("選擇排版", logger):
             attr_name = f"WEBEX_{self.layout.upper()}_POINT"
             point_str = getattr(config, attr_name, None)
             if point_str:
