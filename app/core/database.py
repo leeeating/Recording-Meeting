@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
 
 
 def create_db_resources(url: str, db_name: str):
-    db_logger.info(f"Initializing {db_name} DB engine.")
+    # db_logger.debug(f"Initializing {db_name} DB engine.")
 
     def is_sqlite_url(url: str) -> bool:
         return url.lower().startswith("sqlite")
@@ -28,7 +28,7 @@ def create_db_resources(url: str, db_name: str):
     )
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db_logger.info(f"{db_name} Engine initialized.")
+    # db_logger.debug(f"{db_name} Engine initialized.")
     return engine, SessionLocal
 
 
@@ -51,8 +51,8 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def initialize_db_schema():
-    db_logger.info("Initializing database schemas...")
+    # db_logger.info("Initializing database schemas...")
 
     Base.metadata.create_all(bind=database_engine)
 
-    db_logger.info("Database schemas created successfully.")
+    # db_logger.info("Database schemas created successfully.")
