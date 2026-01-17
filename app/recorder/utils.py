@@ -15,18 +15,29 @@ def copy_paste(info: str):
     pyautogui.press("enter")
     time.sleep(1)
 
+def kill_process(process_name):
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            if proc.info['name'] == process_name:
+                # 獲取主進程與所有子進程
+                parent = psutil.Process(proc.info['pid'])
+                children = parent.children(recursive=True)
+                
+                # 2. 先溫和停止子進程，最後才是父進程
+                for child in children:
+                    child.terminate()
+                parent.terminate()
+                
+                # 3. 等待一段時間讓資源釋放 (最多等 5 秒)
+                gone, alive = psutil.wait_procs([parent] + children, timeout=5)
+                
+                # 4. 如果還有活著的，就強制殺掉
+                for survivor in alive:
+                    survivor.kill()
+                    
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
 
-def kill_process(Pname: str | None, logger: logging.Logger):
-    """
-    這是非常重要的方法，可以保證下次視窗正常被偵測。
-    """
-    for proc in psutil.process_iter(["pid", "name"]):
-        if proc.info["name"] == Pname:
-            logger.debug(
-                f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})"
-            )
-            proc.terminate()
-            proc.wait(10)
 
 
 @contextmanager
