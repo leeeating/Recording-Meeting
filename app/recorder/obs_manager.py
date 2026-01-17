@@ -29,8 +29,12 @@ class OBSManager:
         """
         不確定使用舊的process連線websocket會不會出錯
         """
-        if self._check_exist():
-            return
+        ## 可能導致殭屍程式，會讓下次OBS啟動失敗
+        # if self._check_exist():
+        # if self._check_exist_uia():
+        #     logger.debug("OBS Exist")
+        #     # 再次嘗試kill
+        #     return
 
         with action("啟動 OBS", logger, is_critical=True):
             subprocess.Popen(
@@ -49,7 +53,7 @@ class OBSManager:
                         port=self.port,
                         timeout=timeout,
                     )
-                    if self.check_connect():
+                    if self._check_connect():
                         logger.debug(f"第{n + 1}次連線成功")
                         return
 
@@ -63,11 +67,11 @@ class OBSManager:
         """
         這個方法會讓OBS啟動時跳出，安全模式的提示框，不建議使用
         """
-        with action("關閉OBS", logger):
-            kill_process(Pname="obs64.exe", logger=logger)
+        with action("關閉OBS by psutil", logger):
+            kill_process(process_name="obs64.exe")
 
     def kill_obs_process_by_taskkill(self):
-        with action("關閉OBS", logger):
+        with action("關閉OBS by taskkill", logger):
             result = subprocess.run(
                 ["taskkill", "/IM", "obs64.exe", "/T"],
                 capture_output=True,
@@ -86,8 +90,8 @@ class OBSManager:
             logger.warning("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
     def setup_obs_scene(self, scene_name: str):
-        with action(f"配置場景: {scene_name}", logger):
-            self.check_connect()
+        with action(f"配置場景: {scene_name}", logger, is_critical=True):
+            self._check_connect()
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
 
@@ -98,32 +102,30 @@ class OBSManager:
         先找到視窗名在重新設定錄製視窗
         """
         target_name = self._get_target_window_name()
-        if target_name:
-            with action("更改obs中的錄製視窗", logger):
-                self.client.set_input_settings(
-                    name="webex.exe",
-                    settings={"window": target_name},
-                    overlay=True,
+
+        with action("更改obs中的錄製視窗", logger):
+            if not target_name:
+                raise ValueError(
+                    "找不到 Webex 會議視窗，使用上次的設定的錄製視窗，可能導致錄製缺陷"
                 )
-        else:
-            logger.error("找不到webex會議視窗，可能錄到其他視窗")
+
+            self.client.set_input_settings(
+                name="webex.exe",
+                settings={"window": target_name},
+                overlay=True,
+            )
 
     def disconnect(self):
-        if self.client:
-            with action("斷開 OBS 連線", logger):
-                self.client.disconnect()
-
-        else:
-            logger.warning(
-                "OBS client isn't detecting. Can Not disconnect obs websocket"
-            )
+        with action("斷開 OBS 連線", logger):
+            self._check_connect()
+            self.client.disconnect()
 
     def start_recording(self):
         with action("啟動錄影", logger, is_critical=True):
-            self.check_connect()
+            self._check_connect()
             status = self.client.get_record_status()
 
-            if status.output_active:
+            if status.output_active:  # type: ignore
                 logger.warning("OBS 已經在錄影中，跳過啟動指令")
                 return
 
@@ -131,16 +133,16 @@ class OBSManager:
 
     def stop_recording(self):
         with action("停止錄影", logger):
-            self.check_connect()
+            self._check_connect()
             status = self.client.get_record_status()
 
-            if not status.output_active:
+            if not status.output_active:  # type: ignore
                 logger.warning("OBS 目前並未錄影，跳過停止指令")
                 return
 
             self.client.stop_record()
 
-    def check_connect(self) -> bool:
+    def _check_connect(self) -> bool:
         """檢查並回傳連線物件，解決 'None' 的型別問題"""
         if self.client is None:
             raise ConnectionError("OBS WebSocket 未連線")
@@ -174,6 +176,7 @@ class OBSManager:
     @staticmethod
     def _get_target_window_name():
         windows = Desktop(backend="uia").windows()
+
         for win in windows:
             try:
                 title = win.window_text()
@@ -187,9 +190,19 @@ class OBSManager:
                         return obs_window_str
             except Exception:
                 continue
+
         return None
 
     def _check_exist(self):
         for proc in psutil.process_iter(["name"]):
             if proc.info["name"] == self.PROCESS_NAME:
                 return True
+
+    def _check_exist_uia(self):
+        try:
+            win = Desktop(backend="uia").window(title_re=".*OBS.*")
+            win.wait("exists", timeout=5, retry_interval=1)
+            return True
+
+        except Exception:
+            return False
