@@ -28,25 +28,33 @@ PROCESS_MAP = {
 }
 
 
-def start_recording(task_id: int):
-    logger.debug(f"收到啟動指令，準備執行 Task ID: {task_id}")
+"""
+每步驟都會有註解說明錯誤處理的等級
+Critical Aciotn 會發送 Email
+Error Aciotn 則只會在log中記錄，錄影會繼續，但輸出的畫面會有缺陷
+"""
 
+
+def start_recording(task_id: int):
     task = None
     with Session(database_engine) as db:
-        try:
-            task = (
-                db.query(TaskORM)
-                .options(joinedload(TaskORM.meeting))
-                .filter(TaskORM.id == task_id)
-                .first()
-            )
+        task = (
+            db.query(TaskORM)
+            .options(joinedload(TaskORM.meeting))
+            .filter(TaskORM.id == task_id)
+            .first()
+        )
 
-            if not task:
-                # TODO: send email notification
-                logger.error(
-                    f"找不到 Task {task_id}，取消錄影", extra={"send_email": True}
-                )
-                raise NotFoundError(f"找不到 Task {task_id}")
+        if not task:
+            logger.error(f"找不到 Task {task_id}，取消錄影", extra={"send_email": True})
+            raise NotFoundError(f"找不到 Task {task_id}")
+
+        meeting_name = task.meeting.meeting_name
+
+        try:
+            logger.debug(
+                f"收到啟動指令，準備執行 Meeting Name: {task.meeting.meeting_name} Task ID: {task_id}"
+            )
 
             # TODO:
             # if task.meeting.creator_email:
@@ -62,15 +70,14 @@ def start_recording(task_id: int):
 
             # get default scene and recording
             meeting_type = task.meeting.meeting_type.upper()
-            scene_name = SCENE_NAME_MAP.get(meeting_type)
-
-            if scene_name:
-                obs_mgr.setup_obs_scene(scene_name=scene_name)
-            else:
-                logger.error("設定場景錯誤", extra={"send_email": True})
+            scene_name = SCENE_NAME_MAP[meeting_type]
 
             # Critical Action
-            # obs_mgr.start_recording()
+            obs_mgr.setup_obs_scene(scene_name=scene_name)
+
+            # Critical Action
+            if config.ENV == "prod":
+                obs_mgr.start_recording()
 
             # ----- status update -----
             task.status = TaskStatus.RECORDING
@@ -94,79 +101,81 @@ def start_recording(task_id: int):
                 meeting_mgr = WebexManager(**meeting_info)
 
             else:
-                # TODO: send email
                 logger.error(
                     "OBS正常啟動，但Meeting Menager初始化失敗",
                     extra={"send_email": True},
                 )
                 raise ValueError("Meeting Manager is None")
 
+            # multiple action
             meeting_mgr.join_meeting_and_change_layout()
 
+            # Error Action
             if meeting_type == "WEBEX":
                 obs_mgr.setup_obs_window()
 
         except Exception as e:
             db.rollback()
-            logger.exception(
-                f"執行 start_recording 失敗 (ID: {task_id}): {str(e)}",
+            logger.critical(
+                f"執行 start_recording 失敗 (Meeting Name: {meeting_name}, Task ID: {task_id}): {str(e)}",
                 extra={"send_email": True},
             )
-            if task:
-                task.status = TaskStatus.FAILED
-                db.commit()
-            # raise e
+
+            task.status = TaskStatus.FAILED
+            db.commit()
 
 
 def end_recording(task_id: int):
     task = None
     with Session(database_engine) as db:
-        try:
-            task = (
-                db.query(TaskORM)
-                .options(joinedload(TaskORM.meeting))
-                .filter(TaskORM.id == task_id)
-                .first()
+        task = (
+            db.query(TaskORM)
+            .options(joinedload(TaskORM.meeting))
+            .filter(TaskORM.id == task_id)
+            .first()
+        )
+        if not task:
+            logger.error(
+                f"結束錄影時，找不到 Task ID {task_id}",
             )
+            raise NotFoundError(f"找不到 Task {task_id}")
 
-            if not task:
-                logger.error(
-                    f"結束錄影時，找不到 Task {task_id}", extra={"send_email": True}
-                )
-                raise NotFoundError(f"找不到 Task {task_id}")
+        meetig_name = task.meeting.meeting_name
 
+        try:
             obs_mgr.connect()
             time.sleep(1)
 
             obs_mgr.stop_recording()
             time.sleep(1)
 
+            obs_mgr.disconnect()
+
             obs_mgr.kill_obs_process_by_taskkill()
             time.sleep(3)
 
-            logger.info(f"OBS 錄影已停止，Task {task_id}")
+            logger.info(f"OBS 錄影已停止，Meeting Nname: {meetig_name}, Task {task_id}")
 
             meeting_type = task.meeting.meeting_type.upper()
 
             kill_meeting_process(meeting_type)
-            # ZoomManager.shutdown()
 
             # 4. 更新任務狀態為完成
             task.status = TaskStatus.COMPLETED
             db.commit()
-            logger.info(f"Task {task_id} 錄影成功並已完整關閉相關程式")
+            logger.info(
+                f"Meeting: {meetig_name}, Task ID {task_id} 錄影成功並已完整關閉相關程式"
+            )
 
         except Exception as e:
             db.rollback()
-            logger.error(
-                f"執行 end_recording 失敗 (ID: {task_id}): {str(e)}",
-                exc_info=True,
+            logger.critical(
+                f"執行 end_recording 失敗 (Meeting: {meetig_name}, Task ID: {task_id}): {str(e)}",
                 extra={"send_email": True},
             )
-            if task:
-                task.status = TaskStatus.FAILED
-                db.commit()
-            raise e
+
+            task.status = TaskStatus.FAILED
+            db.commit()
 
 
 def kill_meeting_process(meeting_type: str | None):
@@ -176,4 +185,4 @@ def kill_meeting_process(meeting_type: str | None):
 
     with action(f"關閉{meeting_type}", logger):
         Pname = PROCESS_MAP.get(meeting_type)
-        kill_process(Pname, logger)
+        kill_process(Pname)
