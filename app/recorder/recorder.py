@@ -76,6 +76,7 @@ def start_recording(task_id: int):
             obs_mgr.setup_obs_scene(scene_name=scene_name)
 
             # Critical Action
+            logger.info(f"{config.ENV}")
             if config.ENV == "prod":
                 obs_mgr.start_recording()
 

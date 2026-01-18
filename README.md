@@ -79,7 +79,7 @@ B. 在**桌面**建立兩個`.bat`檔案，分別寫入以下指令，以後直�
 2. 搜尋`應用程式密碼`
    ![alt text](readme_figure/search.png)
 
-3. 設定並紀錄`應用程式密碼`
+3. 設定並紀錄`應用程式密碼`，名字可以隨便取，產生的密碼要保存。
 
    ![alt text](readme_figure/setting.png)
 
