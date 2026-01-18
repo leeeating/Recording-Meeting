@@ -10,6 +10,7 @@ from app.models.schemas import (
     MeetingCreateSchema,
     MeetingQuerySchema,
     MeetingResponseSchema,
+    MeetingUpdateSchema,
 )
 
 from .task_service import TaskService
@@ -101,7 +102,7 @@ class MeetingService:
     def update_meeting(
         self,
         meeting_id: int,
-        data: MeetingCreateSchema,
+        data: MeetingUpdateSchema,
     ) -> MeetingResponseSchema:
         meeting = self.db.query(MeetingORM).filter(MeetingORM.id == meeting_id).first()
 
@@ -109,7 +110,7 @@ class MeetingService:
             self.logger.error(f"Cannot update: Meeting ID {meeting_id} not found.")
             raise NotFoundError(detail=f"Meeting ID {meeting_id} not found.")
 
-        updates_data = MeetingORM(**data.model_dump(exclude_unset=True))
+        updates_data = data.model_dump(exclude_unset=True)
 
         columns_with_time = [
             "start_time",

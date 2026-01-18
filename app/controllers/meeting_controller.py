@@ -7,6 +7,7 @@ from app.models.schemas import (
     MeetingCreateSchema,
     MeetingQuerySchema,
     MeetingResponseSchema,
+    MeetingUpdateSchema,
 )
 from app.services.meeting_service import MeetingService
 
@@ -60,7 +61,7 @@ async def get_meetings(
 )
 async def update_meeting_endpoint(
     meeting_id: int,
-    update_data: MeetingCreateSchema,
+    update_data: MeetingUpdateSchema,
     service: MeetingService = Depends(get_meeting_service),
 ) -> MeetingResponseSchema:
     # 過濾未設定欄位

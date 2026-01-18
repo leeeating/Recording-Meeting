@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta
 from typing import List
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session, joinedload
@@ -13,12 +12,10 @@ from app.core.scheduler import scheduler
 from app.models import MeetingORM, TaskORM
 from app.models.enums import TaskStatus
 from app.models.schemas import TaskQuerySchema, TaskResponseSchema
-
-from ..recorder.recorder import end_recording, start_recording
+from app.recorder.recorder import end_recording, start_recording
+from shared.config import TAIPEI_TZ
 
 task_service_logger = logging.getLogger(__name__)
-
-TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 
 class TaskService:
@@ -122,7 +119,13 @@ class TaskService:
         """
         如果meeting中與時間有關的欄位更動，再更新Task資料
         """
-        tasks = self.db.query(TaskORM).filter(TaskORM.meeting_id == meeting.id).all()
+        tasks = (
+            self.db.query(TaskORM)
+            .filter(
+                TaskORM.meeting_id == meeting.id, TaskORM.status == TaskStatus.UPCOMING
+            )
+            .all()
+        )
 
         if not tasks:
             self.logger.error(f"Unable to update task for Meeting ID {meeting.id}.")
@@ -169,11 +172,7 @@ class TaskService:
         """
         刪除尚未執行的任務，確保不會更動到以前的任務狀態。
         """
-        task = (
-            self.db.query(TaskORM)
-            .filter(TaskORM.id == task_id, TaskORM.status == TaskStatus.UPCOMING)
-            .first()
-        )
+        task = self.db.query(TaskORM).filter(TaskORM.id == task_id).first()
 
         if not task:
             self.logger.error(f"Cannot delete: Task ID {task_id} not found.")
@@ -286,8 +285,9 @@ class TaskService:
         diff = meeting.end_time - meeting.start_time
         interval = timedelta(days=meeting.repeat_unit)
         now_time = datetime.now(TAIPEI_TZ)
-        self.logger.debug(f"{curr_start.tzinfo}, {meeting.repeat_end_date.tzinfo}")
-        while curr_start <= meeting.repeat_end_date:
+        # self.logger.debug(f"{curr_start.tzinfo}, {meeting.repeat_end_date.tzinfo}")
+        repeat_end_date = meeting.repeat_end_date
+        while curr_start <= repeat_end_date:
             if curr_start >= now_time:
                 all_times.append((curr_start, curr_start + diff))
             curr_start += interval
