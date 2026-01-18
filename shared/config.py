@@ -1,5 +1,6 @@
 import platform
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -123,3 +124,4 @@ config = Config()
 
 WAIT_TIMEOUT = config.MEETING_WAIT_TIMEOUT_IN_SECOND
 DURATION = config.RECORDING_DURATION_IN_MINUTE
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")

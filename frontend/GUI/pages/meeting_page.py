@@ -18,9 +18,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
+from app.models.schemas import (
+    MeetingCreateSchema,
+    MeetingResponseSchema,
+    MeetingUpdateSchema,
+)
 from frontend.services.api_client import ApiClient
-from shared.config import DURATION, config
+from shared.config import DURATION, config, TAIPEI_TZ
 
 from .base_page import BasePage
 from .page_config import ALIGNLEFT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
@@ -138,23 +142,28 @@ class MeetingManagerPage(BasePage):
     def _update_list_data(self):
         """顯示資料到 UI"""
         self.view_list.clear()
-        now = datetime.now()
+        now = datetime.now(tz=TAIPEI_TZ)
         only_upcoming = self.filter_chk.isChecked()
 
-        for m_id, m in self.meeting_list.items():
-            m_start_dt = m.start_time.replace(tzinfo=None) if m.start_time else now
+        for m_id, meeting in self.meeting_list.items():
+            correct_end_time = (
+                meeting.repeat_end_date.replace(tzinfo=TAIPEI_TZ)
+                if meeting.repeat
+                else meeting.end_time
+            )
 
-            if only_upcoming and m_start_dt < now:
+            if only_upcoming and meeting.start_time < now:
                 continue
 
-            display_name = m.meeting_name or "未命名會議"
+            postfix = "(Repeat)" if meeting.repeat else ""
+            display_name = f"{meeting.meeting_name} {postfix}"
 
             item = QListWidgetItem(f"📅 {display_name}")
             item.setData(Qt.ItemDataRole.UserRole, m_id)
 
-            if m_start_dt < now:
+            if correct_end_time < now:
                 item.setForeground(Qt.GlobalColor.gray)
-                item.setText(item.text() + " (已結束)")
+                item.setText(item.text() + "- 已結束")
 
             self.view_list.addItem(item)
 
@@ -328,7 +337,7 @@ class MeetingFormWidget(QGroupBox):
         """收集資料並發送訊號"""
         try:
             data = {}
-            for field in MeetingCreateSchema.model_fields.keys():
+            for field in MeetingUpdateSchema.model_fields.keys():
                 widget = getattr(self, field, None)
                 if widget:
                     data[field] = get_widget_value(widget)
@@ -342,7 +351,7 @@ class MeetingFormWidget(QGroupBox):
             if data["creator_name"] is None:
                 data["creator_name"] = "test"
 
-            validated_schema = MeetingCreateSchema.model_validate(data)
+            validated_schema = MeetingUpdateSchema.model_validate(data)
 
             self.save_requested.emit(validated_schema)
             self._clear_form()

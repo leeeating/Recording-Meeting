@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Optional, Self
-from zoneinfo import ZoneInfo
+from shared.config import TAIPEI_TZ
 
 from pydantic import (
     BaseModel,
@@ -12,8 +12,6 @@ from pydantic import (
 )
 
 from .enums import LayoutType, MeetingType, TaskStatus
-
-TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 
 class CustomBaseModel(BaseModel):
@@ -39,12 +37,14 @@ class MeetingBase(CustomBaseModel):
     meeting_password: Optional[str] = Field(None, max_length=50, description="會議密碼")
     meeting_layout: LayoutType = Field(..., description="會議佈局")
     creator_name: str = Field(..., max_length=100, description="會議建立者名稱")
-    creator_email: Optional[str] = Field(..., max_length=100, description="會議建立者 Email")
+    creator_email: Optional[str] = Field(
+        ..., max_length=100, description="會議建立者 Email"
+    )
     start_time: datetime = Field(..., description="排程開始時間")
     end_time: datetime = Field(..., description="排程結束時間")
     repeat: bool = Field(False, description="是否重複排程")
     repeat_unit: Optional[int] = Field(None, description="重複的天數")
-    repeat_end_date: Optional[datetime] = Field(None, description="重複結束日期")
+    repeat_end_date: datetime = Field(..., description="重複結束日期")
 
     # --- 格式化驗證器 (Response 也需要的處理) ---
 
@@ -127,6 +127,34 @@ class MeetingResponseSchema(MeetingBase):
     id: int = Field(..., description="會議主鍵 ID")
     created_at: datetime = Field(..., description="會議創建時間")
     updated_at: datetime = Field(..., description="會議最後更新時間")
+
+
+class MeetingUpdateSchema(MeetingBase):
+    @model_validator(mode="after")
+    def validate_meeting_rules(self) -> Self:
+        has_url = bool(self.meeting_url)
+        has_room_id = bool(self.room_id)
+        has_password = bool(self.meeting_password)
+
+        if not has_url and not (has_room_id and has_password):
+            raise ValueError(
+                "會議連線資訊不足。請提供 'meeting_url' 或 'room_id' 搭配 'password'。"
+            )
+
+        if self.start_time >= self.end_time:
+            raise ValueError("排程結束時間必須嚴格晚於開始時間。")
+        return self
+
+    @model_validator(mode="after")
+    def validate_repeat_rules(self) -> Self:
+        if self.repeat:
+            if self.repeat_unit is None or self.repeat_unit <= 0:
+                raise ValueError("啟用重複排程時，'repeat_days' 必須為正整數。")
+            if self.repeat_end_date is None:
+                raise ValueError("啟用重複排程時，必須提供 'repeat_end_date'。")
+            if self.repeat_end_date <= self.start_time:
+                raise ValueError("'repeat_end_date' 必須晚於 'start_time'。")
+        return self
 
 
 class MeetingQuerySchema(BaseModel):
