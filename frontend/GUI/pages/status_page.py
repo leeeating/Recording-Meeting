@@ -18,7 +18,7 @@ class StatusPage(BasePage):
     def __init__(self, api_client: ApiClient):
         super().__init__()
         self.api_client = api_client
-        self.header = ["任務 ID", "會議名稱", "下次執行時間", "參數備註"]
+        self.header = ["排程 ID", "會議名稱", "下次執行時間"]
 
         self._create_widgets()
         self._setup_layout()
@@ -112,7 +112,7 @@ class StatusPage(BasePage):
                 str(job.get("id", "")),
                 str(job.get("name", "未命名任務")),
                 str(job.get("next_run_time", "已暫停")),  # 整合暫停邏輯
-                str(job.get("trigger", "")),
+                # str(job.get("trigger", "")),
             ]
 
             for col, text in enumerate(display_data):
