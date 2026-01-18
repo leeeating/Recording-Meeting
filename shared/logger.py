@@ -15,6 +15,11 @@ class EmailFilter(logging.Filter):
         return getattr(record, "send_email", False)
 
 
+class TxtFilter(logging.Filter):
+    def filter(self, record):
+        return getattr(record, "send_email", False)
+
+
 class AsyncSMTPHandler(handlers.QueueHandler):
     internal_handler: handlers.SMTPHandler
 
