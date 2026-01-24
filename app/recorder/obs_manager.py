@@ -22,7 +22,6 @@ class OBSManager:
 
     def __init__(self):
         self.obs_path = config.OBS_PATH
-        self.obs_cwd = config.OBS_CWD
         self.port = 4455
 
     def launch_obs(self):
