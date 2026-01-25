@@ -46,7 +46,7 @@ class AsyncSMTPHandler(handlers.QueueHandler):
         atexit.register(self.listener.stop)
 
 
-def update_logger_sender(new_email: str, new_password: str):
+def update_addressee(new_email: str):
     """
     針對 YAML 定義的 'email' handler 進行動態修改
     """
@@ -57,11 +57,8 @@ def update_logger_sender(new_email: str, new_password: str):
             inner = handler.internal_handler
 
             if isinstance(inner, handlers.SMTPHandler):
-                inner.fromaddr = new_email
                 inner.toaddrs = [new_email]
-                setattr(inner, "credentials", (new_email, new_password))
-
-                logging.info(f"已成功修改內部的 SMTPHandler 寄件人: {new_email}")
+                logging.info(f"已成功修改收件人: {new_email}")
                 return
 
     logging.warning("在 'app' logger 中找不到名為 email 的 AsyncSMTPHandler")

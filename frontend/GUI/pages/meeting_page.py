@@ -253,7 +253,7 @@ class MeetingFormWidget(QGroupBox):
         left_l.addRow("會議類型:", self.meeting_type)
         left_l.addRow("會議佈局:", self.meeting_layout)
         left_l.addRow("建立者名稱:", self.creator_name)
-        # left_l.addRow("建立者 Email:", self.creator_email)
+        left_l.addRow("建立者 Email:", self.creator_email)
         left_l.addRow("起始時間:", self.start_time)
         left_l.addRow("結束時間:", self.end_time)
 
