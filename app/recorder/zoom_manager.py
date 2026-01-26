@@ -135,7 +135,7 @@ class ZoomManager:
         Zoom can use url schema to entry meeting. \\
         URL example: zoommtg://zoom.us/join?confno=123456789&pwd=xxxx
         """
-        meeting_id = self.meeting_id
+        meeting_id = self.meeting_id.replace(" ", "")
         password = self.password
 
         if self.meeting_url:
@@ -143,5 +143,5 @@ class ZoomManager:
             query_params = parse_qs(parsed_url.query)
             meeting_id = parsed_url.path.split("/")[-1]
             password = query_params.get("pwd", [None])[0]
-
+        logger.debug(f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}")
         return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
