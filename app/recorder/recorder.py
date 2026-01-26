@@ -11,6 +11,7 @@ from app.recorder.obs_manager import OBSManager
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
 from shared.config import config
+from shared.logger import update_addressee
 
 from .utils import action, kill_process
 
@@ -56,9 +57,7 @@ def start_recording(task_id: int):
                 f"收到啟動指令，準備執行 Meeting Name: {task.meeting.meeting_name} Task ID: {task_id}"
             )
 
-            # TODO:
-            # if task.meeting.creator_email:
-            #     update_logger_sender(task.meeting.creator_email, "")
+            update_addressee(task.meeting.creator_email)
 
             # Critical Action
             obs_mgr.launch_obs()
