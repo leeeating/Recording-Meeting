@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Any, Optional, Self
-from shared.config import TAIPEI_TZ
 
 from pydantic import (
     BaseModel,
@@ -10,6 +9,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+
+from shared.config import TAIPEI_TZ
 
 from .enums import LayoutType, MeetingType, TaskStatus
 
@@ -162,12 +163,12 @@ class MeetingQuerySchema(BaseModel):
     start_time: Optional[datetime] = Field(None, description="過濾起始時間。")
 
     skip: int = Field(0, ge=0, description="跳過的記錄數。")
-    limit: int = Field(10, le=20, description="每頁的記錄數。")
+    limit: int = Field(100, description="每頁的記錄數。")
 
     sort_by: str = Field(
         "start_time", pattern=r"^(start_time|meeting_name)$", description="排序欄位。"
     )
-    order: str = Field("desc", pattern=r"^(asc|desc)$", description="排序順序。")
+    order: str = Field("asc", pattern=r"^(asc|desc)$", description="排序順序。")
 
 
 # ----- Task Schemas -----

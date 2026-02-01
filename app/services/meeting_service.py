@@ -1,7 +1,8 @@
 import logging
+from datetime import datetime
 from typing import List
 
-from sqlalchemy import asc, desc
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import NotFoundError
@@ -12,6 +13,7 @@ from app.models.schemas import (
     MeetingResponseSchema,
     MeetingUpdateSchema,
 )
+from shared.config import TAIPEI_TZ
 
 from .task_service import TaskService
 
@@ -89,14 +91,50 @@ class MeetingService:
         """
         根據查詢參數獲取 Meeting 列表，支持分頁和排序。
         """
-        query = self.db.query(MeetingORM)
+        now = datetime.now(tz=TAIPEI_TZ)
 
-        sort_column = MeetingORM.start_time
-        order_func = asc if params.order == "asc" else desc
-        query = query.order_by(order_func(sort_column))
+        stmt = select(MeetingORM)
 
-        meetings = query.offset(params.skip).limit(params.limit).all()
-        return [MeetingResponseSchema.model_validate(meeting) for meeting in meetings]
+        # 定義「是否尚未結束」的條件
+        is_not_finished = case(
+            ((MeetingORM.repeat.is_(True)) & (MeetingORM.repeat_end_date >= now), 0),
+            ((MeetingORM.repeat.is_(False)) & (MeetingORM.end_time >= now), 0),
+            else_=1,
+        )
+
+        stmt = stmt.order_by(
+            # 第一優先級：未結束(0) 在前，已結束(1) 在後
+            is_not_finished.asc(),
+            # 第二優先級：處理「未結束」群組的正序 (asc)
+            # 當符合未結束條件時，回傳時間值；否則回傳 NULL。
+            # NULL 會被排在最後面，不影響此處的 asc 排序。
+            case(
+                (
+                    (
+                        (MeetingORM.repeat.is_(True))
+                        & (MeetingORM.repeat_end_date >= now)
+                    )
+                    | ((MeetingORM.repeat.is_(False)) & (MeetingORM.end_time >= now)),
+                    MeetingORM.start_time,
+                )
+            )
+            .asc()
+            .nullslast(),
+            # 第三優先級：處理「已結束」群組的反序 (desc)
+            # 邏輯同上，但針對已結束的資料回傳時間值，並套用 desc。
+            case(
+                (
+                    ((MeetingORM.repeat.is_(True)) & (MeetingORM.repeat_end_date < now))
+                    | ((MeetingORM.repeat.is_(False)) & (MeetingORM.end_time < now)),
+                    MeetingORM.start_time,
+                )
+            )
+            .desc()
+            .nullslast(),
+        )
+
+        results = self.db.execute(stmt).scalars().all()
+        return [MeetingResponseSchema.model_validate(meeting) for meeting in results]
 
     # ----- Update Methods -----
     def update_meeting(
