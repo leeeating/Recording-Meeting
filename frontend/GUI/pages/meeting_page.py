@@ -24,7 +24,7 @@ from app.models.schemas import (
     MeetingUpdateSchema,
 )
 from frontend.services.api_client import ApiClient
-from shared.config import DURATION, config, TAIPEI_TZ
+from shared.config import DURATION, TAIPEI_TZ, config
 
 from .base_page import BasePage
 from .page_config import ALIGNLEFT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
@@ -84,6 +84,7 @@ class MeetingManagerPage(BasePage):
         self.view_list.itemClicked.connect(self._on_item_selected)
         self.form_widget.save_requested.connect(self._handle_save_request)
         self.refresh_btn.clicked.connect(self._refresh_list)
+        self.form_widget.delete_requested.connect(self._handle_delete_request)
 
     def _on_add_new_clicked(self):
         self.active_meeting_id = None
@@ -152,8 +153,13 @@ class MeetingManagerPage(BasePage):
                 else meeting.end_time
             )
 
-            if only_upcoming and meeting.start_time < now:
-                continue
+            if only_upcoming:
+                is_started = meeting.start_time < now
+                is_expired = correct_end_time < now
+                
+                # 如果兩者都符合（已經開始且已過期/結束），則跳過
+                if is_started and is_expired:
+                    continue
 
             postfix = "(Repeat)" if meeting.repeat else ""
             display_name = f"{meeting.meeting_name} {postfix}"
@@ -167,6 +173,33 @@ class MeetingManagerPage(BasePage):
 
             self.view_list.addItem(item)
 
+    def _handle_delete_request(self):
+        """處理刪除會議請求"""
+        if not self.active_meeting_id:
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "刪除確認",
+            "您確定要刪除這場會議嗎？\n這將同時刪除所有關聯任務。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+
+        if confirm == QMessageBox.StandardButton.Yes:
+            self.run_request(
+                self.api_client.delete_meeting,
+                self.active_meeting_id,
+                name="刪除會議",
+                callback=self._on_delete_success,
+                lock_widget=self.form_widget,
+            )
+
+    def _on_delete_success(self, _=None):
+        """刪除成功後的處理"""
+        self.active_meeting_id = None
+        self.form_widget.set_mode(is_create=True)  # 切換回建立模式或清空
+        self._refresh_list()
+
 
 # ----------------------------------------------------------------------------
 
@@ -174,6 +207,7 @@ class MeetingManagerPage(BasePage):
 class MeetingFormWidget(QGroupBox):
     SPACING = 10
     save_requested = pyqtSignal(object)
+    delete_requested = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -189,7 +223,7 @@ class MeetingFormWidget(QGroupBox):
         """
         property name according to schema name
         """
-        self.meeting_name = CustomLineEdit(placeholder="請輸入會議名稱", width=400)
+        self.meeting_name = CustomLineEdit(placeholder="請輸入會議名稱", width=600)
 
         # Left column
         self.meeting_type = fixed_width_height(QComboBox())
@@ -221,9 +255,18 @@ class MeetingFormWidget(QGroupBox):
 
         self.save_button = QPushButton("💾 提交變更")
         self.save_button.setMinimumHeight(45)
+
+        self.delete_button = QPushButton("🗑️ 刪除會議")  # 新增
+        self.delete_button.setStyleSheet(
+            "background-color: #dc3545; color: white; font-weight: bold;"
+        )
+        self.delete_button.setMinimumHeight(45)
+        self.delete_button.hide()  # 預設隱藏
+
         # Debug button: 設定開始時間為現在 + 30 秒（方便測試）
         self.debug_button = QPushButton("🐞 設定開始時間 +30秒")
         self.debug_button.setMinimumHeight(45)
+
         self._update_meeting_layout(self.meeting_type.currentText())
 
     def _layout_ui(self):
@@ -264,6 +307,7 @@ class MeetingFormWidget(QGroupBox):
 
         # Buttons layout: debug + save
         btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.delete_button)
         btn_layout.addStretch()
         btn_layout.addWidget(self.debug_button)
         btn_layout.addWidget(self.save_button)
@@ -275,6 +319,7 @@ class MeetingFormWidget(QGroupBox):
         self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
         self.start_time.changed.connect(self._sync_end_time)
         self.debug_button.clicked.connect(self._set_debug_start_time)
+        self.delete_button.clicked.connect(self._on_delete_clicked)
 
     def set_mode(self, is_create: bool):
         """切換建立/編輯模式的 UI 狀態"""
@@ -291,6 +336,7 @@ class MeetingFormWidget(QGroupBox):
             self.save_button.setStyleSheet(
                 "background-color: #0078D4; color: white; font-weight: bold;"
             )
+            self.delete_button.show()
 
     def load_data(self, data: MeetingResponseSchema):
         """
@@ -420,3 +466,14 @@ class MeetingFormWidget(QGroupBox):
 
         except Exception as e:
             logger.warning(f"設定 debug 開始時間失敗: {e}")
+
+    def _on_delete_clicked(self):
+        # 增加二次確認彈窗
+        reply = QMessageBox.question(
+            self,
+            "確認刪除",
+            "確定要刪除此會議嗎？此動作無法復原。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.delete_requested.emit()

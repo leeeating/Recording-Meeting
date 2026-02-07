@@ -1,9 +1,12 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session, joinedload
 
 from app.controllers.dependencies import get_task_service
+from app.core.database import get_db
 from app.core.scheduler import scheduler
+from app.models import TaskORM
 from app.models.schemas import (
     TaskQuerySchema,
     TaskResponseSchema,
@@ -51,7 +54,7 @@ async def update_task_endpoint(
 ):
     # model_dump(exclude_unset=True) 確保只更新有傳入的欄位
     updates = update_data.model_dump(exclude_unset=True)
-    return service.update_task(task_id, **updates)
+    return service.update_task(**updates)
 
 
 # ----- Delete Endpoints -----
@@ -68,17 +71,28 @@ async def delete_task_endpoint(
 
 
 @router.get("/scheduler/jobs")
-async def list_jobs():
+async def list_jobs(db: Session = Depends(get_db)):
     # 這裡是在後端進程執行，所以能抓到真正的 jobs
     jobs = scheduler.get_jobs()
-    return [
-        {
-            "id": job.id,
-            "name": job.name,
-            "next_run_time": job.next_run_time.strftime("%Y-%m-%d %H:%M")
-            if job.next_run_time
-            else "已暫停",
-            "trigger": str(job.trigger),
-        }
-        for job in jobs
-    ]
+    result = []
+
+    for job in jobs:
+        task_id = int(job.id.split("_")[-1])
+        task = (
+            db.query(TaskORM)
+            .options(joinedload(TaskORM.meeting))
+            .filter(TaskORM.id == task_id)
+            .first()
+        )
+
+        result.append(
+            {
+                "id": job.id,
+                "name": task.meeting.meeting_name if task else "未知會議",
+                "next_run_time": job.next_run_time.strftime("%Y-%m-%d %H:%M")
+                if job.next_run_time
+                else "已暫停",
+            }
+        )
+
+    return result

@@ -13,7 +13,7 @@ if sys.platform == "win32":
 
 from shared.config import WAIT_TIMEOUT, config
 
-from .utils import action, copy_paste
+from .utils import action, copy_paste, set_foreground
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +32,6 @@ class WebexManager:
         self.meeting_id = meeting_id
         self.password = password
         self.layout = layout
-
-        logger.info(f"WebexManager initialized for: {self.meeting_name}")
 
     def join_meeting_and_change_layout(self):
         """
@@ -55,8 +53,6 @@ class WebexManager:
         ):
             logger.error("必須提供 meeting_url 或 (meeting_id + password)")
             raise ValueError("必須提供 meeting_url 或 (meeting_id + password)")
-
-        logger.info(f"開始執行自動化加入流程：{self.meeting_name}")
 
         self._launch_webex()
         self._input_meeting_info()
@@ -116,19 +112,29 @@ class WebexManager:
         else:
             with action("輸入ID/PW", logger, is_critical=True):
                 copy_paste(self.meeting_id)
+                time.sleep(3)
+
+                password_window = Desktop(backend="uia").window(
+                    title="Webex", class_name="CiscoUIFrame"
+                )
+
+                set_foreground(password_window)
+
+                time.sleep(3)
                 copy_paste(self.password)
 
-        time.sleep(1)
+        time.sleep(3)
 
         with action("按下[加入會議]按鈕", logger, is_critical=True):
-            waiting_window = Desktop(backend="uia").window(title_re=".*準備加入.*")
-            waiting_window.set_focus()
-            btn = waiting_window.child_window(
-                title_re=".*加入.*",
-                control_type="Button",
-            )
-            btn.wait("ready", timeout=60)
-            btn.click_input()
+            # waiting_window = Desktop(backend="uia").window(title_re=".*準備加入.*")
+            # waiting_window.set_focus()
+            # btn = waiting_window.child_window(
+            #     title_re=".*加入.*",
+            #     control_type="Button",
+            # )
+            # btn.wait("ready", timeout=60)
+            # btn.click_input()
+            pyautogui.press("enter")
 
     def _handle_waiting_room_and_change_layout(self):
         """

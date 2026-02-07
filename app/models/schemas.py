@@ -204,4 +204,11 @@ class TaskQuerySchema(BaseModel):
     order: str = Field("asc", pattern=r"^(asc|desc)$", description="排序順序。")
 
     status: Optional[str] = Field(None, description="依據任務狀態過濾。")
-    meeting_name_like: Optional[str] = Field(None, description="依據會議名稱模糊搜索。")
+
+    # 增加時間範圍過濾
+    start_time_ge: Optional[datetime] = Field(
+        None, description="篩選開始時間大於等於此值的記錄"
+    )
+    end_time_le: Optional[datetime] = Field(
+        None, description="篩選結束時間小於等於此值的記錄"
+    )

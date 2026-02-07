@@ -24,7 +24,7 @@ QLabel#header {
 QLabel {
   color: #9ba3b2; /* 較暗的灰藍，降低干擾 */
   font-weight: normal;
-  font-size: 14pt;
+  font-size: 18pt;
 }
 
 /* --- 輸入框與選擇器 (QLineEdit, QComboBox, QDateTimeEdit) --- */
@@ -219,4 +219,14 @@ QDateTimeEdit::down-arrow {
 /* 確保輸入框在聚焦時，右側按鈕也有對應變化 */
 QDateTimeEdit:focus {
   border: 1px solid #88c0d0;
+}
+
+QHeaderView::section {
+  padding: 4px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+QTableWidget {
+  font-size: 16px;
 }

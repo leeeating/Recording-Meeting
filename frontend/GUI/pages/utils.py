@@ -31,7 +31,8 @@ class DateTimeInputGroup(QWidget):
     def __init__(self, offset_hours: int = 0, height: int = 30, parent=None):
         super().__init__(parent)
         self.offset_hours = offset_hours
-        self.widget_height = height
+        self._height = height
+        self._weight = 170
         initial_dt = QDateTime.currentDateTime().addSecs(self.offset_hours * 3600)
 
         self._init_ui(initial_dt)
@@ -44,12 +45,13 @@ class DateTimeInputGroup(QWidget):
         self.date_picker = QDateTimeEdit(initial_dt)
         self.date_picker.setCalendarPopup(True)
         self.date_picker.setDisplayFormat("yyyy/MM/dd")
-        self.date_picker.setMinimumHeight(self.widget_height)
+        self.date_picker.setMinimumHeight(self._height)
+        self.date_picker.setFixedWidth(self._weight)
         # self.date_picker.lineEdit().setReadOnly(True)  # type: ignore
 
         # B. 時間選擇器 (TimePickerButton)
         self.time_edit = TimePickerButton(initial_dt.time())
-        self.time_edit.setMinimumHeight(self.widget_height)
+        self.time_edit.setMinimumHeight(self._height)
 
     def _setup_layout(self):
         """僅負責排列 UI 元件"""

@@ -1,39 +1,185 @@
 import logging
-from datetime import datetime, timedelta
 
-from pydantic import ValidationError
-from PyQt6.QtCore import QDateTime, Qt, pyqtSignal
+from PyQt6.QtCore import QDateTime, Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
     QDateTimeEdit,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMessageBox,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
-    QWidget,
 )
 
-from app.models.schemas import MeetingCreateSchema, MeetingResponseSchema
-from frontend.services.api_client import ApiClient
-from shared.config import config
+from app.models.schemas import TaskQuerySchema, TaskResponseSchema
+from frontend.services import ApiClient
 
 from .base_page import BasePage
-from .page_config import ALIGNLEFT, ALIGNRIGHT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
-from .utils import (
-    CustomLineEdit,
-    DateTimeInputGroup,
-    create_form_block,
-    fixed_width_height,
-    get_widget_value,
-)
 
 logger = logging.getLogger(__name__)
 
 
 class TaskManagerPage(BasePage):
-    pass
+    def __init__(self, api_client: ApiClient, parent=None):
+        super().__init__(parent)
+        self.api_client = api_client
+        self.widget_height = 35
+        self.date_width = 180
+        self.header = ["會議名稱", "日期時間", "狀態"]
+        self.n_header = len(self.header)
+
+        self._create_widgets()
+        self._setup_layout()
+        self._connect_signals()
+
+    def _create_widgets(self):
+        """初始化所有 UI 元件"""
+        # --- A. 篩選區 ---
+        self.filter_group = QGroupBox("任務篩選")
+        self.start_date_edit = QDateTimeEdit(QDateTime.currentDateTime().addDays(-7))
+        self.end_date_edit = QDateTimeEdit(QDateTime.currentDateTime())
+
+        for edit in [self.start_date_edit, self.end_date_edit]:
+            edit.setCalendarPopup(True)
+            edit.setDisplayFormat("yyyy/MM/dd")
+            edit.setFixedWidth(self.date_width)
+            edit.setFixedHeight(self.widget_height)
+
+        self.filter_btn = QPushButton("查詢")
+        self.clear_btn = QPushButton("重置")
+
+        # --- B. 表格區 ---
+        self.result_table = QTableWidget()
+        self.result_table.setColumnCount(self.n_header)
+        self.result_table.setHorizontalHeaderLabels(self.header)
+
+        self.result_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+
+        # --- C. 統計區 ---
+        self.status_label = QLabel("共顯示 0 筆資料")
+
+    def _setup_layout(self):
+        """組織佈局結構"""
+        main_layout = QVBoxLayout(self)
+
+        # 篩選欄位排列
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("開始:"))
+        filter_layout.addWidget(self.start_date_edit)
+        filter_layout.addSpacing(10)
+        filter_layout.addWidget(QLabel("結束:"))
+        filter_layout.addWidget(self.end_date_edit)
+        filter_layout.addStretch()
+        filter_layout.addWidget(self.filter_btn)
+        filter_layout.addWidget(self.clear_btn)
+        self.filter_group.setLayout(filter_layout)
+
+        # 頁面組裝
+        main_layout.addWidget(self.filter_group)
+        main_layout.addWidget(self.result_table, stretch=1)
+
+        summary_layout = QHBoxLayout()
+        summary_layout.addStretch()
+        summary_layout.addWidget(self.status_label)
+        main_layout.addLayout(summary_layout)
+
+    def _connect_signals(self):
+        """負責訊號與槽的連結"""
+        self.filter_btn.clicked.connect(self.on_filter_clicked)
+        self.clear_btn.clicked.connect(self.on_clear_clicked)
+
+    # --- 邏輯操作方法 ---
+
+    def on_clear_clicked(self):
+        """重置篩選條件"""
+        self.start_date_edit.setDateTime(QDateTime.currentDateTime().addDays(-7))
+        self.end_date_edit.setDateTime(QDateTime.currentDateTime())
+        self.result_table.setRowCount(0)
+        self.update_summary(0)
+
+    def on_filter_clicked(self):
+        """執行篩選並載入資料"""
+        # 1. 取得時間並封裝成 Schema
+        # 設定開始為 00:00:00，結束為 23:59:59
+        s_dt = (
+            self.start_date_edit.dateTime()
+            .toPyDateTime()
+            .replace(hour=0, minute=0, second=0)
+        )
+        e_dt = (
+            self.end_date_edit.dateTime()
+            .toPyDateTime()
+            .replace(hour=23, minute=59, second=59)
+        )
+
+        query_params = TaskQuerySchema(
+            start_time_ge=s_dt,
+            end_time_le=e_dt,
+            skip=0,
+            limit=200,
+            sort_by="start_time",
+            order="asc",
+            status=None,
+        )
+
+        self.run_request(
+            self.api_client.get_tasks,
+            params=query_params,  # 這裡傳入篩選參數
+            name="載入統計資料",
+            callback=self._render_table,
+        )
+
+    def _render_table(self, data_list: list[TaskResponseSchema]):
+        """
+        將 API 回傳的 List[TaskResponseSchema] 渲染至表格
+        """
+        self.result_table.setRowCount(0)
+
+        # 防呆：如果請求失敗或資料為空
+        if data_list is None:
+            self.update_summary(0)
+            return
+
+        self.result_table.setRowCount(len(data_list))
+
+        for row_idx, task in enumerate(data_list):
+            # 1. 預先處理格式化欄位
+            start_time_str = (
+                task.start_time.strftime("%Y/%m/%d %H:%M") if task.start_time else "-"
+            )
+            status_text = (
+                task.status.value if hasattr(task.status, "value") else str(task.status)
+            )
+
+            # 2. 定義顯示資料清單 (需與 self.header = ["會議名稱", "日期時間", "狀態"] 順序一致)
+            display_data = [
+                task.meeting_name,  # 會議名稱
+                start_time_str,  # 日期時間
+                status_text,  # 狀態
+            ]
+
+            for col_idx, text in enumerate(display_data):
+                item = QTableWidgetItem(str(text))
+
+                item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+
+                # 文字置中對齊
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # 特殊邏輯：如果是狀態欄位且為「FAILED」，可以加顏色（選配）
+                if col_idx == 2 and "failed" in text.lower():
+                    from PyQt6.QtGui import QColor
+
+                    item.setForeground(QColor("#e74c3c"))  # 紅色
+
+                self.result_table.setItem(row_idx, col_idx, item)
+
+        # 更新底部統計數量
+        self.update_summary(len(data_list))
+
+    def update_summary(self, count: int):
+        self.status_label.setText(f"共顯示 {count} 筆資料")

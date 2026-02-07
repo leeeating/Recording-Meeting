@@ -12,7 +12,14 @@ from .config import config
 
 class EmailFilter(logging.Filter):
     def filter(self, record):
-        return getattr(record, "send_email", False)
+        send_email = getattr(record, "send_email", False)
+        if not send_email:
+            return False
+
+        record.meeting_name = getattr(record, "meeting_name", "N/A")
+        record.meeting_type = getattr(record, "meeting_type", "N/A")
+
+        return True
 
 
 class TxtFilter(logging.Filter):
@@ -50,6 +57,9 @@ def update_addressee(new_email: str):
     """
     針對 YAML 定義的 'email' handler 進行動態修改
     """
+    new_email = f"{config.ADDRESSEES_EMAIL},{new_email}"
+    new_adres = new_email.split(",") if "," in new_email else [new_email]
+
     target_logger = logging.getLogger("app")
 
     for handler in target_logger.handlers:
@@ -57,7 +67,7 @@ def update_addressee(new_email: str):
             inner = handler.internal_handler
 
             if isinstance(inner, handlers.SMTPHandler):
-                inner.toaddrs = [new_email]
+                inner.toaddrs = new_adres
                 logging.info(f"已成功修改收件人: {new_email}")
                 return
 

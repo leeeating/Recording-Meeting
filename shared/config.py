@@ -108,6 +108,11 @@ class Config(BaseSettings):
         description="電子郵件密碼。",
     )
 
+    ADDRESSEES_EMAIL: str = Field(
+        ...,
+        description="收件者信箱"
+    )
+
     # Timeout Configuration
     MEETING_WAIT_TIMEOUT_IN_SECOND: int = Field(
         default=300,

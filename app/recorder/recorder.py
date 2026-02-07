@@ -47,10 +47,13 @@ def start_recording(task_id: int):
         )
 
         if not task:
-            logger.error(f"找不到 Task {task_id}，取消錄影", extra={"send_email": True})
+            logger.critical(
+                f"找不到 Task {task_id}，取消錄影", extra={"send_email": True}
+            )
             raise NotFoundError(f"找不到 Task {task_id}")
 
         meeting_name = task.meeting.meeting_name
+        meeting_type = task.meeting.meeting_type.upper()
 
         try:
             logger.debug(
@@ -58,6 +61,7 @@ def start_recording(task_id: int):
             )
 
             update_addressee(task.meeting.creator_email)
+            # update_addressee(config.ADDRESSEES_EMAIL)
 
             # Critical Action
             obs_mgr.launch_obs()
@@ -68,14 +72,13 @@ def start_recording(task_id: int):
             time.sleep(1)
 
             # get default scene and recording
-            meeting_type = task.meeting.meeting_type.upper()
             scene_name = SCENE_NAME_MAP[meeting_type]
 
             # Critical Action
             obs_mgr.setup_obs_scene(scene_name=scene_name)
 
             # Critical Action
-            logger.info(f"{config.ENV}")
+            logger.debug(f"{config.ENV}")
             if config.ENV == "prod":
                 obs_mgr.start_recording()
 
@@ -118,7 +121,11 @@ def start_recording(task_id: int):
             db.rollback()
             logger.critical(
                 f"執行 start_recording 失敗 (Meeting Name: {meeting_name}, Task ID: {task_id}): {str(e)}",
-                extra={"send_email": True},
+                extra={
+                    "send_email": True,
+                    "meeting_name": meeting_name,
+                    "meeting_type": meeting_type,
+                },
             )
 
             task.status = TaskStatus.FAILED
@@ -161,11 +168,12 @@ def end_recording(task_id: int):
             kill_meeting_process(meeting_type)
 
             # 4. 更新任務狀態為完成
-            task.status = TaskStatus.COMPLETED
-            db.commit()
-            logger.info(
-                f"Meeting: {meetig_name}, Task ID {task_id} 錄影成功並已完整關閉相關程式"
-            )
+            if task.status == TaskStatus.UPCOMING:
+                task.status = TaskStatus.COMPLETED
+                db.commit()
+                logger.info(
+                    f"Meeting: {meetig_name}, Task ID {task_id} 錄影成功並已完整關閉相關程式"
+                )
 
         except Exception as e:
             db.rollback()

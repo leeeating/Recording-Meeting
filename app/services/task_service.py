@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import List
 
-from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
 from typing_extensions import deprecated
@@ -62,39 +61,26 @@ class TaskService:
         self,
         params: TaskQuerySchema,
     ) -> List[TaskResponseSchema]:
-        self.logger.debug(f"Retrieving tasks with query params: {params.model_dump()}")
-
         query = self._get_base_query()
 
         # filtering
         if params.status:
             query = query.filter(TaskORM.status == params.status)
 
-        # 依據會議名稱模糊搜索
-        if params.meeting_name_like:
-            # 必須透過 Task.meeting 關係來存取 Meeting 模型中的欄位
-            search_term = f"%{params.meeting_name_like}%"
-            query = query.filter(TaskORM.meeting.meeting_name.like(search_term))
+        # 在 get_all_tasks 方法中加入時間過濾
+        if params.start_time_ge:
+            query = query.filter(TaskORM.start_time >= params.start_time_ge)
 
-        # sorting
-        if params.sort_by == "start_time":
-            sort_column = TaskORM.meeting.start_time
-
-        elif params.sort_by == "status":
-            sort_column = TaskORM.status
-
-        else:
-            sort_column = TaskORM.meeting.start_time
-
-        # ordering
-        if params.order == "desc":
-            query = query.order_by(desc(sort_column))
-
-        else:
-            query = query.order_by(asc(sort_column))
+        if params.end_time_le:
+            query = query.filter(TaskORM.end_time <= params.end_time_le)
 
         # pagination
-        tasks = query.offset(params.skip).limit(params.limit).all()
+        tasks = (
+            query.order_by(TaskORM.start_time.asc())
+            .offset(params.skip)
+            .limit(params.limit)
+            .all()
+        )
 
         return [TaskResponseSchema.model_validate(task) for task in tasks]
 
@@ -110,7 +96,6 @@ class TaskService:
 
         return TaskResponseSchema.model_validate(task)
 
-    # FIXME:
     # ----- Update Methods -----
     def update_task(
         self,

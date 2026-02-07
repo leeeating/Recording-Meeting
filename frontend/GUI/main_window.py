@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
                 "id": "task",
                 "title": "統計資料",
                 "class": TaskManagerPage,
-                "args": (),
+                "args": (self.api_client,),
             },
         ]
 

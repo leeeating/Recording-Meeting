@@ -9,7 +9,7 @@ from shared.config import WAIT_TIMEOUT
 if sys.platform == "win32":
     from pywinauto import Desktop
 
-from .utils import action
+from .utils import action, maximize_window
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,6 @@ class ZoomManager:
 
         time.sleep(2)
 
-
         ## 在執行[等待連線中]、[等待主持人允許] 會因為執行權限的問題，出現偵測視窗失敗
         ## 偵測失敗後，會導致Timeout檢查一起失敗，但不會跳出錯誤提醒
         ## 目前使用[管理員權限]執行可以解決，但無法確保其他bug出現
@@ -71,12 +70,17 @@ class ZoomManager:
                 retry_interval=1,
             )
 
+        logger.debug("Before sleep")
+        time.sleep(5)
+        logger.debug("after sleep")
+
         with action("[Zoom Workplace]等待主持人允許", logger, is_critical=True):
             main_window = Desktop(backend="uia").window(
                 title="Zoom Workplace",
                 class_name="zWaitingRoomWndClass",
             )
-            logger.debug(f"Zoom Workplace {main_window.exists()}")
+            logger.info(f"Zoom Workplace is exists: {main_window.exists()}")
+            print(f"Zoom Workplace is exists: {main_window.exists()}")
             main_window.wait_not(
                 "exists",
                 timeout=WAIT_TIMEOUT,
@@ -92,16 +96,14 @@ class ZoomManager:
         Don't need point of each layout button.
         我嘗試下來，這步驟的成功與否應該會依賴OBS開啟時是否有安全模式的提示框
         """
-
-        # with action("[Zoom會議]Zoom視窗最大化", logger):
-        #     meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
-        #     meeting_window.set_focus()
-        #     meeting_window.maximize()
-
         meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
+        logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
+
+        with action("[Zoom會議]Zoom視窗最大化", logger):
+            maximize_window(meeting_window)
+
         with action("[Zoom會議]按下檢視按鈕", logger):
             meeting_window.wait("ready", timeout=10)
-            meeting_window.set_focus()
 
             btn = meeting_window.child_window(title="檢視", control_type="Button")
 
@@ -112,7 +114,7 @@ class ZoomManager:
                 except Exception:
                     btn.click_input()  # 如果邏輯點擊失敗，再用物理點擊
 
-        # time.sleep(1)
+        time.sleep(0.5)
 
         with action("[Zoom會議]選擇排版", logger):
             layout_btn = meeting_window.child_window(
@@ -136,12 +138,13 @@ class ZoomManager:
         URL example: zoommtg://zoom.us/join?confno=123456789&pwd=xxxx
         """
         meeting_id = self.meeting_id.replace(" ", "")
-        password = self.password
+        password = self.password.replace(" ", "")
+        if self.meeting_id and self.password:
+            return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
 
-        if self.meeting_url:
-            parsed_url = urlparse(self.meeting_url)
-            query_params = parse_qs(parsed_url.query)
-            meeting_id = parsed_url.path.split("/")[-1]
-            password = query_params.get("pwd", [None])[0]
+        parsed_url = urlparse(self.meeting_url)
+        query_params = parse_qs(parsed_url.query)
+        meeting_id = parsed_url.path.split("/")[-1]
+        password = query_params.get("pwd", [None])[0]
         logger.debug(f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}")
         return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"

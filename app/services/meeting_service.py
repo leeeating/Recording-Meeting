@@ -157,24 +157,24 @@ class MeetingService:
             "repeat_unit",
             "repeat_end_date",
         ]
-        has_changes = False
+        task_change = False
         for key, value in updates_data.items():
+            setattr(meeting, key, value)
             if (key in columns_with_time) and (getattr(meeting, key) != value):
-                setattr(meeting, key, value)
-                has_changes = True
+                task_change = True
 
-        if has_changes:
+        if task_change:
             self.task_service.update_task(meeting)
 
-            try:
-                self.db.commit()
-                self.db.refresh(meeting)
-                self.logger.info(f"會議 {meeting_id} 更新完成")
+        try:
+            self.db.commit()
+            self.db.refresh(meeting)
+            self.logger.info(f"會議 {meeting_id} 更新完成")
 
-            except Exception as e:
-                self.db.rollback()
-                self.logger.error(f"資料庫更新失敗: {str(e)}")
-                raise
+        except Exception as e:
+            self.db.rollback()
+            self.logger.error(f"資料庫更新失敗: {str(e)}")
+            raise
 
         return MeetingResponseSchema.model_validate(meeting)
 
@@ -197,6 +197,9 @@ class MeetingService:
             self.logger.info(
                 f"Deleted Meeting ID {meeting_id} and its associated tasks."
             )
+
+            for deleted_task_id in [task.id for task in meeting.tasks]:
+                self.task_service.remove_job_from_scheduler(deleted_task_id)
 
         except Exception as e:
             self.logger.error(f"Failed to delete Meeting ID {meeting_id}. Error: {e}")
