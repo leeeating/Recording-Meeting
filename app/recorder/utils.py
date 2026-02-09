@@ -124,6 +124,8 @@ def action(
     action_name: str,
     logger: logging.Logger,
     is_critical=False,
+    meeting_name: str = "",
+    meeting_type: str = "",
 ):
     """
     統一處理每步驟的error
@@ -139,4 +141,11 @@ def action(
             raise ActionError(f"操作 [{action_name}] 失敗, {e}") from e
 
         else:
-            logger.error(f"操作 [{action_name}] 失敗 {e}",  extra={"send_email": True})
+            logger.error(
+                f"操作 [{action_name}] 失敗: {e}",
+                extra={
+                    "send_email": True,
+                    "meeting_name": meeting_name,
+                    "meeting_type": meeting_type,
+                },
+            )

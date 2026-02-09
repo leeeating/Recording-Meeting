@@ -99,10 +99,10 @@ class ZoomManager:
         meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
         logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
 
-        with action("[Zoom會議]Zoom視窗最大化", logger):
+        with action("[Zoom會議]Zoom視窗最大化", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
             maximize_window(meeting_window)
 
-        with action("[Zoom會議]按下檢視按鈕", logger):
+        with action("[Zoom會議]按下檢視按鈕", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
             meeting_window.wait("ready", timeout=10)
 
             btn = meeting_window.child_window(title="檢視", control_type="Button")
@@ -116,7 +116,7 @@ class ZoomManager:
 
         time.sleep(0.5)
 
-        with action("[Zoom會議]選擇排版", logger):
+        with action("[Zoom會議]選擇排版", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
             layout_btn = meeting_window.child_window(
                 title_re=f".*{self.layout}.*",
                 control_type="MenuItem",

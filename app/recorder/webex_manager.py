@@ -162,7 +162,7 @@ class WebexManager:
             except Exception as e:
                 raise TimeoutError(f"未出現[版面配置]，因為等待主持人允許超時, {e}")
 
-        with action("選擇排版", logger):
+        with action("選擇排版", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"):
             attr_name = f"WEBEX_{self.layout.upper()}_POINT"
             point_str = getattr(config, attr_name, None)
             if point_str:
@@ -173,7 +173,7 @@ class WebexManager:
                 logger.warning(e)
                 raise ValueError(e)
 
-        with action("靜音", logger):
+        with action("靜音", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"):
             btn = meeting_window.child_window(
                 title_re=".*靜音.*",
                 control_type="Button",
