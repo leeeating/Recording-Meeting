@@ -4,8 +4,6 @@ from typing import List
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
-from typing_extensions import deprecated
-
 from app.core.exceptions import NotFoundError, SchedulingError
 from app.core.scheduler import scheduler
 from app.models import MeetingORM, TaskORM
@@ -124,15 +122,13 @@ class TaskService:
         for task in tasks:
             self.add_job_to_scheduler(task_id=task.id)
 
-    @deprecated("直接在start / end recording function中更新status")
     def update_task_status(
         self,
         task_id: int,
         new_status: TaskStatus,
     ) -> TaskResponseSchema:
         """
-        Deprecated.
-        直接在start / end recording function中更新status
+        手動更新指定 Task 的狀態。
         """
         task = self.db.query(TaskORM).filter(TaskORM.id == task_id).first()
 

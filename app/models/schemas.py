@@ -194,6 +194,10 @@ class TaskResponseSchema(CustomBaseModel):
     creator_email: str = Field(..., description="會議建立者 Email (取自 Meeting)")
 
 
+class TaskUpdateStatusSchema(BaseModel):
+    status: TaskStatus
+
+
 class TaskQuerySchema(BaseModel):
     skip: int = Field(0, ge=0, description="跳過的記錄數。")
     limit: int = Field(100, le=200, description="每頁的記錄數。")

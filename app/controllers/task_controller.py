@@ -10,6 +10,7 @@ from app.models import TaskORM
 from app.models.schemas import (
     TaskQuerySchema,
     TaskResponseSchema,
+    TaskUpdateStatusSchema,
 )
 from app.services.meeting_service import TaskService
 
@@ -45,16 +46,14 @@ async def get_task_endpoint(
 @router.patch(
     "/{task_id}",
     response_model=TaskResponseSchema,
-    summary="根據 ID 更新任務資訊",
+    summary="根據 ID 手動更新任務狀態",
 )
-async def update_task_endpoint(
+async def update_task_status_endpoint(
     task_id: int,
-    update_data: TaskQuerySchema,
+    update_data: TaskUpdateStatusSchema,
     service: TaskService = Depends(get_task_service),
 ):
-    # model_dump(exclude_unset=True) 確保只更新有傳入的欄位
-    updates = update_data.model_dump(exclude_unset=True)
-    return service.update_task(**updates)
+    return service.update_task_status(task_id, update_data.status)
 
 
 # ----- Delete Endpoints -----
