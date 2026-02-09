@@ -198,6 +198,11 @@ class TaskUpdateStatusSchema(BaseModel):
     status: TaskStatus
 
 
+class TaskStatusResponseSchema(BaseModel):
+    id: int
+    status: TaskStatus
+
+
 class TaskQuerySchema(BaseModel):
     skip: int = Field(0, ge=0, description="跳過的記錄數。")
     limit: int = Field(100, le=200, description="每頁的記錄數。")

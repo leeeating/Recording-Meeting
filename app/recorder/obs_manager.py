@@ -94,23 +94,57 @@ class OBSManager:
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
 
-    def setup_obs_window(self):
+    def setup_obs_window(self, meeting_name):
         """
-        確保每次OBS錄製的視窗。 \\
-        Webex的視窗名會隨者host name更改。\\
-        先找到視窗名在重新設定錄製視窗
+        確保 OBS 錄製的視窗正確對應到當前的 Webex 會議。
+        Webex 視窗標題會隨 Host Name 更改，需動態搜尋並重新設定。
         """
-        target_name = self._get_target_window_name()
+        window_keyword = ["CiscoCollabHost.exe"]
+        try:
+            resp = self.client.get_input_properties_list_property_items(
+                "webex.exe", "window"
+            )
 
-        with action("更改obs中的錄製視窗", logger):
-            if not target_name:
+            items = getattr(resp, "property_items", [])
+
+        except Exception as e:
+            logger.error(f"無法獲取 OBS 來源 webex.exe 的屬性: {e}")
+            raise
+
+        target_value = None
+        target_name = None
+
+        cand_win = []
+        for item in items:
+            current_item_name = item["itemName"]
+            current_item_value = item["itemValue"]
+
+            print(current_item_name)
+            print(current_item_value)
+            print()
+
+            have_keyword = any(
+                keyword.lower() in current_item_name.lower()
+                for keyword in window_keyword
+            )
+
+            if have_keyword:
+                cand_win.append((current_item_name, current_item_value))
+
+        with action("更改obs中的錄製視窗", logger, is_critical=False):
+            if not cand_win:
                 raise ValueError(
-                    "找不到 Webex 會議視窗，使用上次的設定的錄製視窗，可能導致錄製缺陷"
+                    f"找不到會議 '{meeting_name}' 的 Webex 視窗。將維持上次的設定，可能導致錄製畫面全黑或錯誤。"
                 )
+
+            best_match = max(cand_win, key=lambda x: len(x[0]))
+            target_name, target_value = best_match
+
+            logger.info(f"Setting recording window to: {target_name}")
 
             self.client.set_input_settings(
                 name="webex.exe",
-                settings={"window": target_name},
+                settings={"window": target_value},
                 overlay=True,
             )
 
@@ -171,26 +205,6 @@ class OBSManager:
 
             except Exception as e:
                 logger.debug(f"未發現彈窗或點擊失敗 (可忽略): {e}")
-
-    @staticmethod
-    def _get_target_window_name():
-        windows = Desktop(backend="uia").windows()
-
-        for win in windows:
-            try:
-                title = win.window_text()
-                if "meeting" in title.lower() or "Webex" in title:
-                    if title != "Webex":
-                        class_name = win.class_name()
-                        executable = "CiscoCollabHost.exe"
-
-                        # 拼湊 OBS 5.x 要求的 window 字串格式
-                        obs_window_str = f"{title}:{class_name}:{executable}"
-                        return obs_window_str
-            except Exception:
-                continue
-
-        return None
 
     def _check_exist(self):
         for proc in psutil.process_iter(["name"]):

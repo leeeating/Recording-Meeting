@@ -24,7 +24,7 @@ QLabel#header {
 QLabel {
   color: #9ba3b2; /* 較暗的灰藍，降低干擾 */
   font-weight: normal;
-  font-size: 18pt;
+  font-size: 16pt;
 }
 
 /* --- 輸入框與選擇器 (QLineEdit, QComboBox, QDateTimeEdit) --- */

@@ -115,7 +115,7 @@ def start_recording(task_id: int):
 
             # Error Action
             if meeting_type == "WEBEX":
-                obs_mgr.setup_obs_window()
+                obs_mgr.setup_obs_window(task.meeting.meeting_name)
 
         except Exception as e:
             db.rollback()

@@ -80,7 +80,6 @@ class ZoomManager:
                 class_name="zWaitingRoomWndClass",
             )
             logger.info(f"Zoom Workplace is exists: {main_window.exists()}")
-            print(f"Zoom Workplace is exists: {main_window.exists()}")
             main_window.wait_not(
                 "exists",
                 timeout=WAIT_TIMEOUT,
@@ -99,10 +98,20 @@ class ZoomManager:
         meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
         logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
 
-        with action("[Zoom會議]Zoom視窗最大化", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
+        with action(
+            "[Zoom會議]Zoom視窗最大化",
+            logger,
+            meeting_name=self.meeting_name,
+            meeting_type="ZOOM",
+        ):
             maximize_window(meeting_window)
 
-        with action("[Zoom會議]按下檢視按鈕", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
+        with action(
+            "[Zoom會議]按下檢視按鈕",
+            logger,
+            meeting_name=self.meeting_name,
+            meeting_type="ZOOM",
+        ):
             meeting_window.wait("ready", timeout=10)
 
             btn = meeting_window.child_window(title="檢視", control_type="Button")
@@ -116,7 +125,12 @@ class ZoomManager:
 
         time.sleep(0.5)
 
-        with action("[Zoom會議]選擇排版", logger, meeting_name=self.meeting_name, meeting_type="ZOOM"):
+        with action(
+            "[Zoom會議]選擇排版",
+            logger,
+            meeting_name=self.meeting_name,
+            meeting_type="ZOOM",
+        ):
             layout_btn = meeting_window.child_window(
                 title_re=f".*{self.layout}.*",
                 control_type="MenuItem",
@@ -124,7 +138,7 @@ class ZoomManager:
             )
             layout_btn.click_input()
             # Implement window maximization here will succeed
-            meeting_window.maximize()
+            # meeting_window.maximize()
 
             logger.info(f"Successfully changed layout to {self.layout}.")
 
@@ -137,9 +151,10 @@ class ZoomManager:
         Zoom can use url schema to entry meeting. \\
         URL example: zoommtg://zoom.us/join?confno=123456789&pwd=xxxx
         """
-        meeting_id = self.meeting_id.replace(" ", "")
-        password = self.password.replace(" ", "")
+
         if self.meeting_id and self.password:
+            meeting_id = self.meeting_id.replace(" ", "")
+            password = self.password.replace(" ", "")
             return f"zoommtg://zoom.us/join?confno={meeting_id}&pwd={password}"
 
         parsed_url = urlparse(self.meeting_url)

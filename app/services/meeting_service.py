@@ -159,10 +159,9 @@ class MeetingService:
         ]
         task_change = False
         for key, value in updates_data.items():
-            setattr(meeting, key, value)
             if (key in columns_with_time) and (getattr(meeting, key) != value):
                 task_change = True
-
+            setattr(meeting, key, value)
         if task_change:
             self.task_service.update_task(meeting)
 

@@ -109,7 +109,7 @@ class CustomLineEdit(QLineEdit):
         self,
         placeholder: str = "",
         width: int = 250,
-        height: int = 35,
+        height: int = 45,
         herizontal_stretch: bool = False,
         vertical_stretch: bool = False,
         parent=None,

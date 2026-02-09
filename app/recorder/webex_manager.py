@@ -13,7 +13,7 @@ if sys.platform == "win32":
 
 from shared.config import WAIT_TIMEOUT, config
 
-from .utils import action, copy_paste, set_foreground
+from .utils import action, copy_paste, maximize_window, set_foreground
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class WebexManager:
                 title="Webex", class_name="MainWindow"
             )
             logger.debug(main_window.exists())
-            main_window.set_focus()
+            set_foreground(main_window)
             btn = main_window.child_window(
                 title_re=" .*加入會議.*",
                 control_type="Button",
@@ -142,12 +142,18 @@ class WebexManager:
         Webex中多數元件有相同屬性，難以用程式辨認，因此直接點擊指定座標。
         """
         # time.sleep(5)
-        with action("點擊[版面配置]按鈕", logger, is_critical=True):
+        with action(
+            "點擊[版面配置]按鈕，選擇排版",
+            logger,
+            meeting_name=self.meeting_name,
+            meeting_type="WEBEX",
+        ):
             meeting_window = Desktop(backend="uia").window(
-                title_re=".*(meeting|Personal Room).*"
+                title_re=f".*({self.meeting_name}|meeting|Personal Room).*"
             )
-            meeting_window.set_focus()
-            meeting_window.maximize()
+            logger.info(f"win name {meeting_window.window_text()}")
+            set_foreground(meeting_window)
+            maximize_window(meeting_window)
             btn = meeting_window.child_window(
                 title_re="版面配置",
                 auto_id="ScannedByVDI",
@@ -162,7 +168,6 @@ class WebexManager:
             except Exception as e:
                 raise TimeoutError(f"未出現[版面配置]，因為等待主持人允許超時, {e}")
 
-        with action("選擇排版", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"):
             attr_name = f"WEBEX_{self.layout.upper()}_POINT"
             point_str = getattr(config, attr_name, None)
             if point_str:
@@ -173,7 +178,9 @@ class WebexManager:
                 logger.warning(e)
                 raise ValueError(e)
 
-        with action("靜音", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"):
+        with action(
+            "靜音", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"
+        ):
             btn = meeting_window.child_window(
                 title_re=".*靜音.*",
                 control_type="Button",

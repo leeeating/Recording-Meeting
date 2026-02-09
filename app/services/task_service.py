@@ -126,7 +126,7 @@ class TaskService:
         self,
         task_id: int,
         new_status: TaskStatus,
-    ) -> TaskResponseSchema:
+    ) -> dict:
         """
         手動更新指定 Task 的狀態。
         """
@@ -143,7 +143,7 @@ class TaskService:
                 f"Updated Task ID {task_id} status from {old_status} to {new_status}"
             )
 
-        return TaskResponseSchema.model_validate(task)
+        return {"id": task.id, "status": task.status}
 
     # ----- Delete Methods -----
     def delete_task(
