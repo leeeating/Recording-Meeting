@@ -10,6 +10,7 @@ from app.models import TaskORM
 from app.models.schemas import (
     TaskQuerySchema,
     TaskResponseSchema,
+    TaskStatusResponseSchema,
     TaskUpdateStatusSchema,
 )
 from app.services.meeting_service import TaskService
@@ -45,7 +46,7 @@ async def get_task_endpoint(
 # ----- Update Endpoints -----
 @router.patch(
     "/{task_id}",
-    response_model=TaskResponseSchema,
+    response_model=TaskStatusResponseSchema,
     summary="根據 ID 手動更新任務狀態",
 )
 async def update_task_status_endpoint(
