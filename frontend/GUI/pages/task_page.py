@@ -184,8 +184,26 @@ class TaskManagerPage(BasePage):
 
                 self.result_table.setItem(row_idx, col_idx, item)
 
-        # 更新底部統計數量
-        self.update_summary(len(data_list))
+        # 統計各狀態數量
+        from collections import Counter
 
-    def update_summary(self, count: int):
-        self.status_label.setText(f"共顯示 {count} 筆資料")
+        statuses = []
+        for t in data_list:
+            raw = t.get("status") if isinstance(t, dict) else t.status
+            statuses.append(raw.value if hasattr(raw, "value") else str(raw))
+        counter = Counter(statuses)
+        self.update_summary(len(data_list), counter)
+
+    def update_summary(self, total: int, counter=None):
+        if counter is None:
+            counter = {}
+        upcoming = counter.get("upcoming", 0)
+        recording = counter.get("recording", 0)
+        completed = counter.get("completed", 0)
+        failed = counter.get("failed", 0)
+        finished = completed + failed
+        rate = f"{completed / finished * 100:.0f}%" if finished else "-"
+        self.status_label.setText(
+            f"共 {total} 筆 ｜ 待執行 {upcoming} ｜ 錄製中 {recording}"
+            f" ｜ 完成 {completed} ｜ 失敗 {failed} ｜ 成功率 {rate}"
+        )
