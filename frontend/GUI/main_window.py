@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 from frontend.GUI.events import BottomBar
 from frontend.services.api_client import ApiClient
 
-from .pages import MeetingManagerPage, StatusPage, TaskManagerPage
+from .pages import MeetingManagerPage, SettingsPage, StatusPage, TaskManagerPage
 
 
 class MainWindow(QMainWindow):
@@ -47,6 +47,12 @@ class MainWindow(QMainWindow):
                 "id": "task",
                 "title": "統計資料",
                 "class": TaskManagerPage,
+                "args": (self.api_client,),
+            },
+            {
+                "id": "settings",
+                "title": "設定",
+                "class": SettingsPage,
                 "args": (self.api_client,),
             },
         ]
