@@ -19,6 +19,7 @@ from frontend.services.api_client import ApiClient
 from shared.config import config, reload_config, save_env
 
 from .base_page import BasePage
+from .utils import CustomLineEdit
 
 logger = logging.getLogger(__name__)
 
@@ -177,22 +178,18 @@ class SettingsPage(BasePage):
             return widget
 
         if field_type == "password":
-            widget = QLineEdit()
+            widget = CustomLineEdit()
             widget.setEchoMode(QLineEdit.EchoMode.Password)
-            widget.setMinimumHeight(30)
             return widget
 
         if field_type == "readonly":
-            widget = QLineEdit()
+            widget = CustomLineEdit()
             widget.setReadOnly(True)
-            widget.setMinimumHeight(30)
             widget.setStyleSheet("background-color: #f0f0f0; color: #888;")
             return widget
 
         # default: text
-        widget = QLineEdit()
-        widget.setMinimumHeight(30)
-        return widget
+        return CustomLineEdit()
 
     def _load_current_values(self):
         for field_name, widget in self._field_widgets.items():
