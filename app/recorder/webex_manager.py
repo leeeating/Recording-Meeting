@@ -11,7 +11,7 @@ from typing_extensions import deprecated
 if sys.platform == "win32":
     from pywinauto import Desktop
 
-from shared.config import WAIT_TIMEOUT, config
+from shared.config import config
 
 from .utils import action, copy_paste, maximize_window, set_foreground
 
@@ -143,7 +143,7 @@ class WebexManager:
         """
         # time.sleep(5)
         with action(
-            "點擊[版面配置]按鈕，選擇排版",
+            "點擊[版面配置]按鈕",
             logger,
             meeting_name=self.meeting_name,
             meeting_type="WEBEX",
@@ -162,12 +162,15 @@ class WebexManager:
             )
 
             try:
-                btn.wait("ready", timeout=WAIT_TIMEOUT)
+                btn.wait("ready", timeout=config.MEETING_WAIT_TIMEOUT_IN_SECOND)
                 btn.click_input()
 
             except Exception as e:
                 raise TimeoutError(f"未出現[版面配置]，因為等待主持人允許超時, {e}")
 
+        with action(
+            "選擇排版", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"
+        ):
             attr_name = f"WEBEX_{self.layout.upper()}_POINT"
             point_str = getattr(config, attr_name, None)
             if point_str:

@@ -18,10 +18,9 @@ from .utils import action, kill_process
 logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
 
-SCENE_NAME_MAP = {
-    "WEBEX": config.WEBEX_SCENE_NAME,
-    "ZOOM": config.ZOOM_SCENE_NAME,
-}
+def _get_scene_name(meeting_type: str) -> str:
+    mapping = {"WEBEX": config.WEBEX_SCENE_NAME, "ZOOM": config.ZOOM_SCENE_NAME}
+    return mapping[meeting_type]
 
 PROCESS_MAP = {
     "ZOOM": "Zoom.exe",
@@ -72,7 +71,7 @@ def start_recording(task_id: int):
             time.sleep(1)
 
             # get default scene and recording
-            scene_name = SCENE_NAME_MAP[meeting_type]
+            scene_name = _get_scene_name(meeting_type)
 
             # Critical Action
             obs_mgr.setup_obs_scene(scene_name=scene_name)
@@ -87,6 +86,25 @@ def start_recording(task_id: int):
             db.commit()
             logger.info("OBS 正常啟動且錄影中")
             # -------------------------
+
+            # ========== 新增：啟動監控任務 ==========
+            from app.core.scheduler import scheduler
+            from app.recorder.monitor_service import monitor_recording
+
+            try:
+                scheduler.add_job(
+                    monitor_recording,
+                    args=[task_id],
+                    trigger="interval",
+                    seconds=30,
+                    id=f"task_monitor_{task_id}",
+                    max_instances=1,
+                    replace_existing=True,
+                )
+                logger.info(f"Task {task_id}: 監控任務已啟動（每 30 秒檢查）")
+            except Exception as e:
+                logger.warning(f"Task {task_id}: 監控任務啟動失敗 - {e}")
+            # =======================================
 
             meeting_info = {
                 "meeting_name": task.meeting.meeting_name,
@@ -133,6 +151,19 @@ def start_recording(task_id: int):
 
 
 def end_recording(task_id: int):
+    # ========== 新增：停止監控任務 ==========
+    from app.core.scheduler import scheduler
+    from app.recorder.monitor_service import monitor_service
+
+    try:
+        scheduler.remove_job(f"task_monitor_{task_id}")
+        logger.info(f"Task {task_id}: 監控任務已停止")
+    except Exception as e:
+        logger.debug(f"Task {task_id}: 監控任務移除失敗（可能已不存在）- {e}")
+
+    monitor_service.cleanup_state(task_id)
+    # =======================================
+
     task = None
     with Session(database_engine) as db:
         task = (
@@ -168,7 +199,7 @@ def end_recording(task_id: int):
             kill_meeting_process(meeting_type)
 
             # 4. 更新任務狀態為完成
-            if task.status == TaskStatus.UPCOMING:
+            if task.status == TaskStatus.RECORDING:
                 task.status = TaskStatus.COMPLETED
                 db.commit()
                 logger.info(

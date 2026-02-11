@@ -4,7 +4,7 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
-from shared.config import WAIT_TIMEOUT
+from shared.config import config
 
 if sys.platform == "win32":
     from pywinauto import Desktop
@@ -66,7 +66,7 @@ class ZoomManager:
             logger.debug(connect_window.exists())
             connect_window.wait_not(
                 "exists",
-                timeout=WAIT_TIMEOUT,
+                timeout=config.MEETING_WAIT_TIMEOUT_IN_SECOND,
                 retry_interval=1,
             )
 
@@ -82,7 +82,7 @@ class ZoomManager:
             logger.info(f"Zoom Workplace is exists: {main_window.exists()}")
             main_window.wait_not(
                 "exists",
-                timeout=WAIT_TIMEOUT,
+                timeout=config.MEETING_WAIT_TIMEOUT_IN_SECOND,
             )
 
         time.sleep(3)
