@@ -148,6 +148,7 @@ class SettingsPage(BasePage):
 
         for group_def in _FIELD_GROUPS:
             group_box = QGroupBox(group_def["title"])
+            group_box.setStyleSheet("QGroupBox::title { font-size: 18px; }")
             form_layout = QFormLayout(group_box)
             form_layout.setVerticalSpacing(10)
             form_layout.setFieldGrowthPolicy(
@@ -180,7 +181,7 @@ class SettingsPage(BasePage):
         if field_type == "combo":
             widget = fixed_width_height(QComboBox())
             widget.addItems(field_def["options"])
-            widget.setMinimumHeight(30)
+            widget.setMinimumHeight(50)
             return widget
 
         if field_type == "spin":
@@ -275,7 +276,7 @@ class EmailListWidget(QWidget):
         self._rows_layout.setSpacing(6)
 
         self._add_btn = QPushButton("＋ 新增收件者")
-        self._add_btn.setMinimumHeight(30)
+        self._add_btn.setFixedHeight(50)
         self._add_btn.clicked.connect(lambda: self._add_row(""))
 
         layout = QVBoxLayout(self)
@@ -325,10 +326,10 @@ class EmailListWidget(QWidget):
         line_edit.setText(text)
         h.addWidget(line_edit, 1)
 
-        del_btn = QPushButton("✕")
+        del_btn = QPushButton("")
         del_btn.setFixedSize(36, 36)
         del_btn.setStyleSheet(
-            "QPushButton { color: #cc4444; font-weight: bold; font-size: 14px; }"
+            "QPushButton { color: #ff6666; font-weight: bold; font-size: 14px; }"
         )
         del_btn.clicked.connect(lambda: self._remove_row(row))
         h.addWidget(del_btn, 0)
