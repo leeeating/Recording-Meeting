@@ -75,7 +75,7 @@ _FIELD_GROUPS: list[dict] = [
         "fields": [
             {"name": "DEFAULT_USER_EMAIL", "label": "寄件者 Email", "type": "text"},
             {"name": "EMAIL_APP_PASSWORD", "label": "Email 密碼", "type": "password"},
-            {"name": "ADDRESSEES_EMAIL", "label": "收件者 Email", "type": "text"},
+            {"name": "ADDRESSEES_EMAIL", "label": "收件者 Email", "type": "email_list"},
         ],
     },
     {
@@ -195,6 +195,9 @@ class SettingsPage(BasePage):
             widget.setEchoMode(QLineEdit.EchoMode.Password)
             return widget
 
+        if field_type == "email_list":
+            return EmailListWidget()
+
         if field_type == "readonly":
             widget = CustomLineEdit()
             widget.setReadOnly(True)
@@ -210,7 +213,9 @@ class SettingsPage(BasePage):
             self._set_widget_value(widget, value)
 
     def _set_widget_value(self, widget: QWidget, value):
-        if isinstance(widget, QComboBox):
+        if isinstance(widget, EmailListWidget):
+            widget.set_value(str(value) if value else "")
+        elif isinstance(widget, QComboBox):
             idx = widget.findText(str(value))
             if idx >= 0:
                 widget.setCurrentIndex(idx)
@@ -220,6 +225,8 @@ class SettingsPage(BasePage):
             widget.setText(str(value) if value is not None else "")
 
     def _get_widget_value(self, widget: QWidget) -> str:
+        if isinstance(widget, EmailListWidget):
+            return widget.get_value()
         if isinstance(widget, QComboBox):
             return widget.currentText()
         if isinstance(widget, QSpinBox):
@@ -256,3 +263,97 @@ class SettingsPage(BasePage):
         except Exception:
             pass
         self._load_current_values()
+
+
+class EmailListWidget(QWidget):
+    """可動態新增/刪除多筆 email 的輸入元件。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._rows_layout = QVBoxLayout()
+        self._rows_layout.setContentsMargins(0, 0, 0, 0)
+        self._rows_layout.setSpacing(6)
+
+        self._add_btn = QPushButton("＋ 新增收件者")
+        self._add_btn.setMinimumHeight(30)
+        self._add_btn.clicked.connect(lambda: self._add_row(""))
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(self._rows_layout)
+        layout.addWidget(self._add_btn)
+
+    # --- public API ---
+
+    def set_value(self, comma_str: str):
+        """逗號分隔字串拆成多行顯示。"""
+        self._clear_rows()
+        emails = [e.strip() for e in comma_str.split(",") if e.strip()]
+        if not emails:
+            emails = [""]
+        for email in emails:
+            self._add_row(email)
+
+    def get_value(self) -> str:
+        """收集非空 email，逗號串接回傳。"""
+        values = []
+        for i in range(self._rows_layout.count()):
+            item = self._rows_layout.itemAt(i)
+            if item is None:
+                continue
+            row_widget = item.widget()
+            if row_widget is None:
+                continue
+            line_edit = row_widget.findChild(CustomLineEdit)
+            if line_edit:
+                text = line_edit.text().strip()
+                if text:
+                    values.append(text)
+        return ",".join(values)
+
+    # --- internal ---
+
+    def _add_row(self, text: str):
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(4)
+
+        line_edit = CustomLineEdit(placeholder="example@email.com")
+        line_edit.setText(text)
+        h.addWidget(line_edit)
+
+        del_btn = QPushButton("－")
+        del_btn.setFixedSize(36, 36)
+        del_btn.clicked.connect(lambda: self._remove_row(row))
+        h.addWidget(del_btn)
+
+        self._rows_layout.addWidget(row)
+        self._update_delete_buttons()
+
+    def _remove_row(self, row: QWidget):
+        self._rows_layout.removeWidget(row)
+        row.deleteLater()
+        self._update_delete_buttons()
+
+    def _update_delete_buttons(self):
+        """只剩一行時隱藏刪除按鈕。"""
+        count = self._rows_layout.count()
+        for i in range(count):
+            item = self._rows_layout.itemAt(i)
+            if item is None:
+                continue
+            row_widget = item.widget()
+            if row_widget is None:
+                continue
+            del_btn = row_widget.findChild(QPushButton)
+            if del_btn:
+                del_btn.setVisible(count > 1)
+
+    def _clear_rows(self):
+        while self._rows_layout.count():
+            item = self._rows_layout.takeAt(0)
+            if item is not None:
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
