@@ -148,16 +148,22 @@ class TaskManagerPage(BasePage):
 
         for row_idx, task in enumerate(data_list):
             # 1. 預先處理格式化欄位
-            start_time_str = (
-                task.start_time.strftime("%Y/%m/%d %H:%M") if task.start_time else "-"
-            )
-            status_text = (
-                task.status.value if hasattr(task.status, "value") else str(task.status)
-            )
+            raw_start = task.get("start_time") if isinstance(task, dict) else task.start_time
+            if isinstance(raw_start, str):
+                start_time_str = raw_start[:16].replace("-", "/").replace("T", " ")
+            elif raw_start:
+                start_time_str = raw_start.strftime("%Y/%m/%d %H:%M")
+            else:
+                start_time_str = "-"
+
+            raw_status = task.get("status") if isinstance(task, dict) else task.status
+            status_text = raw_status.value if hasattr(raw_status, "value") else str(raw_status)
+
+            meeting_name = task.get("meeting_name", "") if isinstance(task, dict) else task.meeting_name
 
             # 2. 定義顯示資料清單 (需與 self.header = ["會議名稱", "日期時間", "狀態"] 順序一致)
             display_data = [
-                task.meeting_name,  # 會議名稱
+                meeting_name,  # 會議名稱
                 start_time_str,  # 日期時間
                 status_text,  # 狀態
             ]
