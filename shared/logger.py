@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from .config import config
+from .config import config, register_reload_callback
 
 
 class EmailFilter(logging.Filter):
@@ -92,6 +92,13 @@ def setup_logger():
         email_h["credentials"] = [config.DEFAULT_USER_EMAIL, config.EMAIL_APP_PASSWORD]
 
     logging.config.dictConfig(logging_dict)
+    register_reload_callback(_on_config_reload)
+
+
+def _on_config_reload(changed_fields: set[str]):
+    if "LOG_LEVEL" in changed_fields:
+        logging.getLogger().setLevel(config.LOG_LEVEL)
+        logging.getLogger(__name__).info(f"Log level 已更新為 {config.LOG_LEVEL}")
 
 
 if __name__ == "__main__":

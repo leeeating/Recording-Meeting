@@ -10,10 +10,13 @@ from app.controllers.task_controller import router as task_router
 from app.core.database import database_engine, initialize_db_schema
 from app.core.exceptions import register_exception_handlers
 from app.core.scheduler import scheduler
+from shared.config import ConfigWatcher
 from shared.logger import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
+
+_config_watcher = ConfigWatcher()
 
 
 @asynccontextmanager
@@ -21,6 +24,7 @@ async def lifespan(app: FastAPI):
     try:
         initialize_db_schema()
         scheduler.start()
+        _config_watcher.start()
 
         jobs = scheduler.get_jobs()
         if not jobs:
@@ -34,6 +38,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    _config_watcher.stop()
     scheduler.shutdown()
     database_engine.dispose()
     logger.info("Database engine disposed.")
