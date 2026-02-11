@@ -108,7 +108,7 @@ class CustomLineEdit(QLineEdit):
     def __init__(
         self,
         placeholder: str = "",
-        width: int = 250,
+        width: int = 500,
         height: int = 45,
         herizontal_stretch: bool = False,
         vertical_stretch: bool = False,

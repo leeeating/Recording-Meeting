@@ -19,7 +19,7 @@ from frontend.services.api_client import ApiClient
 from shared.config import config, reload_config, save_env
 
 from .base_page import BasePage
-from .utils import CustomLineEdit
+from .utils import CustomLineEdit, fixed_width_height
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,12 @@ _FIELD_GROUPS: list[dict] = [
     {
         "title": "環境設定",
         "fields": [
-            {"name": "ENV", "label": "環境", "type": "combo", "options": ["dev", "prod"]},
+            {
+                "name": "ENV",
+                "label": "環境",
+                "type": "combo",
+                "options": ["dev", "prod"],
+            },
             {
                 "name": "LOG_LEVEL",
                 "label": "Log Level",
@@ -58,7 +63,11 @@ _FIELD_GROUPS: list[dict] = [
         "fields": [
             {"name": "WEBEX_GRID_POINT", "label": "Grid 座標", "type": "text"},
             {"name": "WEBEX_STACKED_POINT", "label": "Stacked 座標", "type": "text"},
-            {"name": "WEBEX_SIDE_BY_SIDE_POINT", "label": "Side by Side 座標", "type": "text"},
+            {
+                "name": "WEBEX_SIDE_BY_SIDE_POINT",
+                "label": "Side by Side 座標",
+                "type": "text",
+            },
         ],
     },
     {
@@ -92,7 +101,11 @@ _FIELD_GROUPS: list[dict] = [
         "title": "資料庫 (需重啟)",
         "fields": [
             {"name": "MEETING_DB_URL", "label": "Meeting DB URL", "type": "readonly"},
-            {"name": "SCHEDULER_DB_URL", "label": "Scheduler DB URL", "type": "readonly"},
+            {
+                "name": "SCHEDULER_DB_URL",
+                "label": "Scheduler DB URL",
+                "type": "readonly",
+            },
         ],
     },
 ]
@@ -165,7 +178,7 @@ class SettingsPage(BasePage):
         field_type = field_def["type"]
 
         if field_type == "combo":
-            widget = QComboBox()
+            widget = fixed_width_height(QComboBox())
             widget.addItems(field_def["options"])
             widget.setMinimumHeight(30)
             return widget
@@ -225,7 +238,9 @@ class SettingsPage(BasePage):
             changed = reload_config()
 
             if changed:
-                BottomBar.update_status.emit(f"設定已儲存，更新 {len(changed)} 個欄位", 3)
+                BottomBar.update_status.emit(
+                    f"設定已儲存，更新 {len(changed)} 個欄位", 3
+                )
             else:
                 BottomBar.update_status.emit("設定已儲存，無欄位變更", 3)
 
