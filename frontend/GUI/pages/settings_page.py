@@ -319,14 +319,19 @@ class EmailListWidget(QWidget):
         h.setContentsMargins(0, 0, 0, 0)
         h.setSpacing(4)
 
-        line_edit = CustomLineEdit(placeholder="example@email.com")
+        line_edit = CustomLineEdit(
+            placeholder="example@email.com", herizontal_stretch=True
+        )
         line_edit.setText(text)
-        h.addWidget(line_edit)
+        h.addWidget(line_edit, 1)
 
-        del_btn = QPushButton("－")
+        del_btn = QPushButton("✕")
         del_btn.setFixedSize(36, 36)
+        del_btn.setStyleSheet(
+            "QPushButton { color: #cc4444; font-weight: bold; font-size: 14px; }"
+        )
         del_btn.clicked.connect(lambda: self._remove_row(row))
-        h.addWidget(del_btn)
+        h.addWidget(del_btn, 0)
 
         self._rows_layout.addWidget(row)
         self._update_delete_buttons()
