@@ -328,7 +328,8 @@ class EmailListWidget(QWidget):
         del_btn = QPushButton("✕")
         del_btn.setFixedSize(36, 36)
         del_btn.setStyleSheet(
-            "QPushButton { color: #cc4444; font-weight: bold; font-size: 14px; }"
+            "QPushButton { color: #cc4444; font-weight: bold;"
+            " font-size: 16px; padding: 0px; }"
         )
         del_btn.clicked.connect(lambda: self._remove_row(row))
         h.addWidget(del_btn, 0)
