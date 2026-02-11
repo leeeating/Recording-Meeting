@@ -19,6 +19,7 @@ from frontend.services.api_client import ApiClient
 from shared.config import config, reload_config, save_env
 
 from .base_page import BasePage
+from .page_config import ALIGNLEFT
 from .utils import CustomLineEdit, fixed_width_height
 
 logger = logging.getLogger(__name__)
@@ -319,17 +320,19 @@ class EmailListWidget(QWidget):
         h = QHBoxLayout(row)
         h.setContentsMargins(0, 0, 0, 0)
         h.setSpacing(4)
+        h.setAlignment(ALIGNLEFT)
 
         line_edit = CustomLineEdit(
-            placeholder="example@email.com", herizontal_stretch=True
+            placeholder="example@email.com", herizontal_stretch=True, width=300
         )
         line_edit.setText(text)
         h.addWidget(line_edit, 1)
 
-        del_btn = QPushButton("")
+        del_btn = QPushButton("X")
         del_btn.setFixedSize(36, 36)
         del_btn.setStyleSheet(
-            "QPushButton { color: #ff6666; font-weight: bold; font-size: 14px; }"
+            "QPushButton { color: #cc4444; font-weight: bold;"
+            " font-size: 16px; padding: 0px; }"
         )
         del_btn.clicked.connect(lambda: self._remove_row(row))
         h.addWidget(del_btn, 0)

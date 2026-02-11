@@ -236,10 +236,10 @@ class MeetingFormWidget(QGroupBox):
         self.meeting_url = CustomLineEdit(
             placeholder="Optional", width=300, herizontal_stretch=True
         )
-        self.room_id = CustomLineEdit(placeholder="Optional")
-        self.meeting_password = CustomLineEdit(placeholder="Optional")
+        self.room_id = CustomLineEdit(placeholder="Optional", width=300)
+        self.meeting_password = CustomLineEdit(placeholder="Optional", width=300)
         self.repeat = QCheckBox("Optional")
-        self.repeat_unit = CustomLineEdit(placeholder="Optional")
+        self.repeat_unit = CustomLineEdit(placeholder="Optional", width=300)
         self.repeat_end_date = fixed_width_height(QDateTimeEdit())
         self.repeat_end_date.setCalendarPopup(True)
         self.repeat_end_date.setDisplayFormat("yyyy/MM/dd")
@@ -250,9 +250,9 @@ class MeetingFormWidget(QGroupBox):
 
         self.empty = EmptyLabel(height=35)
 
-        self.creator_name = CustomLineEdit(placeholder="請輸入建立者名稱")
+        self.creator_name = CustomLineEdit(placeholder="請輸入建立者名稱", width=300)
         # 保留變數資訊，刪除UI渲染
-        self.creator_email = CustomLineEdit(placeholder="Optional")
+        self.creator_email = CustomLineEdit(placeholder="Optional", width=300)
         self.start_time = DateTimeInputGroup(0)
         self.end_time = DateTimeInputGroup(1)
 
