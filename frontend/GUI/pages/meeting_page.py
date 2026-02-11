@@ -7,12 +7,15 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
+    QDialog,
+    QDialogButtonBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -24,7 +27,7 @@ from app.models.schemas import (
     MeetingUpdateSchema,
 )
 from frontend.services.api_client import ApiClient
-from shared.config import DURATION, TAIPEI_TZ, config
+from shared.config import TAIPEI_TZ, config
 
 from .base_page import BasePage
 from .page_config import ALIGNLEFT, ALIGNTOP, MEETING_LAYOUT_OPTIONS
@@ -263,6 +266,9 @@ class MeetingFormWidget(QGroupBox):
         self.delete_button.setMinimumHeight(45)
         self.delete_button.hide()  # 預設隱藏
 
+        self.text_input_button = QPushButton("📋 文字輸入")
+        self.text_input_button.setMinimumHeight(45)
+
         # Debug button: 設定開始時間為現在 + 30 秒（方便測試）
         self.debug_button = QPushButton("🐞 設定開始時間 +30秒")
         self.debug_button.setMinimumHeight(45)
@@ -309,6 +315,7 @@ class MeetingFormWidget(QGroupBox):
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(self.delete_button)
         btn_layout.addStretch()
+        btn_layout.addWidget(self.text_input_button)
         btn_layout.addWidget(self.debug_button)
         btn_layout.addWidget(self.save_button)
 
@@ -318,6 +325,7 @@ class MeetingFormWidget(QGroupBox):
         self.save_button.clicked.connect(self._collect_date_and_emit_signal)
         self.meeting_type.currentTextChanged.connect(self._update_meeting_layout)
         self.start_time.changed.connect(self._sync_end_time)
+        self.text_input_button.clicked.connect(self._open_text_input_dialog)
         self.debug_button.clicked.connect(self._set_debug_start_time)
         self.delete_button.clicked.connect(self._on_delete_clicked)
 
@@ -416,7 +424,7 @@ class MeetingFormWidget(QGroupBox):
         try:
             start_dt = self.start_time.get_datetime()
 
-            new_end_dt = start_dt + timedelta(minutes=DURATION)
+            new_end_dt = start_dt + timedelta(minutes=config.RECORDING_DURATION_IN_MINUTE)
 
             self.end_time.set_datetime(new_end_dt)
 
@@ -461,11 +469,90 @@ class MeetingFormWidget(QGroupBox):
             now = datetime.now()
             new_start = now + timedelta(seconds=30)
             self.start_time.set_datetime(new_start)
-            new_end = new_start + timedelta(minutes=DURATION)
+            new_end = new_start + timedelta(minutes=config.RECORDING_DURATION_IN_MINUTE)
             self.end_time.set_datetime(new_end)
 
         except Exception as e:
             logger.warning(f"設定 debug 開始時間失敗: {e}")
+
+    def _open_text_input_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("文字輸入")
+        dialog.setMinimumSize(500, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        hint = QLabel(
+            "請貼入 YAML 風格的 KV 文字，每行一個欄位，格式：key: value\n"
+            "範例：\n"
+            "  meeting_name: 週會\n"
+            "  meeting_type: Webex\n"
+            "  start_time: 2026-02-15 10:00"
+        )
+        layout.addWidget(hint)
+
+        text_edit = QPlainTextEdit()
+        text_edit.setPlaceholderText("meeting_name: 週會\nmeeting_type: Webex\n...")
+        layout.addWidget(text_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            text = text_edit.toPlainText().strip()
+            if text:
+                self._parse_and_fill_form(text)
+
+    def _parse_and_fill_form(self, text: str):
+        kv = {}
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            sep_idx = line.find(": ")
+            if sep_idx == -1:
+                continue
+            key = line[:sep_idx].strip()
+            value = line[sep_idx + 2:].strip()
+            kv[key] = value
+
+        # 先填 meeting_type 以觸發 layout 選項更新
+        if "meeting_type" in kv:
+            self.meeting_type.setCurrentText(kv.pop("meeting_type"))
+
+        for key, value in kv.items():
+            widget = getattr(self, key, None)
+            if widget is None:
+                logger.warning(f"文字輸入：未知欄位 '{key}'，已跳過")
+                continue
+
+            if isinstance(widget, CustomLineEdit):
+                widget.setText(value)
+            elif isinstance(widget, QComboBox):
+                widget.setCurrentText(value)
+            elif isinstance(widget, QCheckBox):
+                widget.setChecked(value.lower() in ("true", "1", "yes"))
+            elif isinstance(widget, DateTimeInputGroup):
+                try:
+                    dt = datetime.strptime(value, "%Y-%m-%d %H:%M")
+                    widget.set_datetime(dt)
+                except ValueError:
+                    logger.warning(f"文字輸入：無法解析時間 '{value}'，欄位 '{key}'")
+            elif isinstance(widget, QDateTimeEdit):
+                q_dt = QDateTime.fromString(value, "yyyy-MM-dd HH:mm")
+                if q_dt.isValid():
+                    widget.setDateTime(q_dt)
+                else:
+                    # 嘗試只有日期的格式
+                    q_dt = QDateTime.fromString(value, "yyyy-MM-dd")
+                    if q_dt.isValid():
+                        widget.setDateTime(q_dt)
+                    else:
+                        logger.warning(f"文字輸入：無法解析日期 '{value}'，欄位 '{key}'")
 
     def _on_delete_clicked(self):
         # 增加二次確認彈窗
