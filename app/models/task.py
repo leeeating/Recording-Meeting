@@ -54,3 +54,15 @@ class TaskORM(Base):
         index=True,
         doc="對應 Meeting 表的主鍵",
     )
+
+    @property
+    def meeting_name(self) -> str:
+        return self.meeting.meeting_name if self.meeting else ""
+
+    @property
+    def creator_name(self) -> str:
+        return self.meeting.creator_name if self.meeting else ""
+
+    @property
+    def creator_email(self) -> str:
+        return self.meeting.creator_email if self.meeting else ""
