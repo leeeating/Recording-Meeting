@@ -51,7 +51,7 @@ class MeetingManagerPage(BasePage):
         self.active_meeting_id = None
         self._worker_ref = None
         self.current_page = 0
-        self.page_size = 10
+        self.page_size = 4
 
         self._init_ui()
         self._layout_ui()
@@ -83,7 +83,7 @@ class MeetingManagerPage(BasePage):
         header.addWidget(self.filter_chk)
 
         layout.addLayout(header)
-        layout.addWidget(self.view_list)
+        layout.addWidget(self.view_list, stretch=8)
 
         paging = QHBoxLayout()
         paging.addWidget(self.prev_btn)
@@ -93,7 +93,7 @@ class MeetingManagerPage(BasePage):
         paging.addWidget(self.next_btn)
         layout.addLayout(paging)
 
-        layout.addWidget(self.form_widget)
+        layout.addWidget(self.form_widget, stretch=1)
 
     def _signal_connect(self):
         self.add_new_btn.clicked.connect(self._on_add_new_clicked)
@@ -402,6 +402,7 @@ class MeetingFormWidget(QGroupBox):
         # 基本文字欄位 (使用物件屬性，不再需要 .get)
         self.meeting_name.setText(data.meeting_name or "")
         self.meeting_url.setText(data.meeting_url or "")
+        self.meeting_url.setCursorPosition(0)
         self.room_id.setText(data.room_id or "")
         self.meeting_password.setText(data.meeting_password or "")
         self.creator_name.setText(data.creator_name or "")

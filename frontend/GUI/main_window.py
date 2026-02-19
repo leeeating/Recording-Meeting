@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Recording Meeting")
-        self.resize(1500, 800)
+        self.resize(1500, 870)
 
         self.api_client = ApiClient()
 
