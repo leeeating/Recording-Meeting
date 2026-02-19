@@ -135,6 +135,15 @@ class CustomLineEdit(QLineEdit):
         )
         self.setSizePolicy(her, ver)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Left and self.hasSelectedText():
+            self.setCursorPosition(min(self.selectionStart(), self.selectionEnd()))
+            return
+        if event.key() == Qt.Key.Key_Right and self.hasSelectedText():
+            self.setCursorPosition(max(self.selectionStart(), self.selectionEnd()))
+            return
+        super().keyPressEvent(event)
+
 
 class EmptyLabel(QLabel):
     """
