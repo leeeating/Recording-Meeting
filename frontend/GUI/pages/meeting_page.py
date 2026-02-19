@@ -159,7 +159,7 @@ class MeetingManagerPage(BasePage):
             if only_upcoming:
                 is_started = meeting.start_time < now
                 is_expired = correct_end_time < now
-                
+
                 # 如果兩者都符合（已經開始且已過期/結束），則跳過
                 if is_started and is_expired:
                     continue
@@ -424,7 +424,9 @@ class MeetingFormWidget(QGroupBox):
         try:
             start_dt = self.start_time.get_datetime()
 
-            new_end_dt = start_dt + timedelta(minutes=config.RECORDING_DURATION_IN_MINUTE)
+            new_end_dt = start_dt + timedelta(
+                minutes=config.RECORDING_DURATION_IN_MINUTE
+            )
 
             self.end_time.set_datetime(new_end_dt)
 
@@ -482,17 +484,28 @@ class MeetingFormWidget(QGroupBox):
 
         layout = QVBoxLayout(dialog)
 
-        hint = QLabel(
-            "請貼入 YAML 風格的 KV 文字，每行一個欄位，格式：key: value\n"
-            "範例：\n"
-            "  meeting_name: 週會\n"
-            "  meeting_type: Webex\n"
-            "  start_time: 2026-02-15 10:00"
-        )
+        hint = QLabel("hint: 沒有數值不用設定")
         layout.addWidget(hint)
 
+        placeholder = """
+            meeting_name: 週會\n
+            meeting_type: Webex\n
+            meeting_layout: Grid\n
+            meeting_url: https://meet.webex.com/xxx\n
+            room_id: 12345\n
+            meeting_password: abc123\n
+            repeat: true\n
+            repeat_unit: 7\n
+            creator_name: 王小明\n
+            creator_email: test@email.com\n
+            start_time: 2026-02-15 10:00\n
+            end_time: 2026-02-15 11:00\n
+        """
+
         text_edit = QPlainTextEdit()
-        text_edit.setPlaceholderText("meeting_name: 週會\nmeeting_type: Webex\n...")
+        text_edit.setPlaceholderText(placeholder)
+        text_edit.setStyleSheet("QPlainTextEdit { font-size: 18px; }")
+        text_edit.setFixedHeight(500)
         layout.addWidget(text_edit)
 
         buttons = QDialogButtonBox(
@@ -517,7 +530,7 @@ class MeetingFormWidget(QGroupBox):
             if sep_idx == -1:
                 continue
             key = line[:sep_idx].strip()
-            value = line[sep_idx + 2:].strip()
+            value = line[sep_idx + 2 :].strip()
             kv[key] = value
 
         # 先填 meeting_type 以觸發 layout 選項更新
@@ -552,7 +565,9 @@ class MeetingFormWidget(QGroupBox):
                     if q_dt.isValid():
                         widget.setDateTime(q_dt)
                     else:
-                        logger.warning(f"文字輸入：無法解析日期 '{value}'，欄位 '{key}'")
+                        logger.warning(
+                            f"文字輸入：無法解析日期 '{value}'，欄位 '{key}'"
+                        )
 
     def _on_delete_clicked(self):
         # 增加二次確認彈窗

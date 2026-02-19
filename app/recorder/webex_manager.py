@@ -185,7 +185,7 @@ class WebexManager:
             "靜音", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"
         ):
             btn = meeting_window.child_window(
-                title_re=".*靜音.*",
+                title_re="(?<!取消)靜音.*",
                 control_type="Button",
                 found_index=0,
             )
