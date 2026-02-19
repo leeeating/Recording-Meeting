@@ -50,6 +50,8 @@ class MeetingManagerPage(BasePage):
         self.meeting_list = {}
         self.active_meeting_id = None
         self._worker_ref = None
+        self.current_page = 0
+        self.page_size = 10
 
         self._init_ui()
         self._layout_ui()
@@ -65,6 +67,9 @@ class MeetingManagerPage(BasePage):
         self.add_new_btn = QPushButton("＋建立新會議")
         self.filter_chk = QCheckBox("僅顯示尚未開始的會議")
         self.view_list = QListWidget()
+        self.prev_btn = QPushButton("< 上一頁")
+        self.next_btn = QPushButton("下一頁 >")
+        self.page_label = QLabel("第 1 頁")
         self.form_widget = MeetingFormWidget()
 
     def _layout_ui(self):
@@ -79,11 +84,22 @@ class MeetingManagerPage(BasePage):
 
         layout.addLayout(header)
         layout.addWidget(self.view_list)
+
+        paging = QHBoxLayout()
+        paging.addWidget(self.prev_btn)
+        paging.addStretch()
+        paging.addWidget(self.page_label)
+        paging.addStretch()
+        paging.addWidget(self.next_btn)
+        layout.addLayout(paging)
+
         layout.addWidget(self.form_widget)
 
     def _signal_connect(self):
         self.add_new_btn.clicked.connect(self._on_add_new_clicked)
-        self.filter_chk.stateChanged.connect(self._update_list_data)
+        self.filter_chk.stateChanged.connect(self._on_filter_changed)
+        self.prev_btn.clicked.connect(self._go_prev_page)
+        self.next_btn.clicked.connect(self._go_next_page)
         self.view_list.itemClicked.connect(self._on_item_selected)
         self.form_widget.save_requested.connect(self._handle_save_request)
         self.refresh_btn.clicked.connect(self._refresh_list)
@@ -135,6 +151,7 @@ class MeetingManagerPage(BasePage):
 
     def _on_fetch_data_loaded(self, data_list: list[MeetingResponseSchema]):
         """處理 API 回傳的資料結構"""
+        self.current_page = 0
         if not data_list:
             self.meeting_list = {}
             self._update_list_data()
@@ -144,11 +161,13 @@ class MeetingManagerPage(BasePage):
         self._update_list_data()
 
     def _update_list_data(self):
-        """顯示資料到 UI"""
+        """顯示資料到 UI（含分頁）"""
         self.view_list.clear()
         now = datetime.now(tz=TAIPEI_TZ)
         only_upcoming = self.filter_chk.isChecked()
 
+        # 收集所有符合過濾條件的項目
+        filtered_items = []
         for m_id, meeting in self.meeting_list.items():
             correct_end_time = (
                 meeting.repeat_end_date.replace(tzinfo=TAIPEI_TZ)
@@ -159,11 +178,21 @@ class MeetingManagerPage(BasePage):
             if only_upcoming:
                 is_started = meeting.start_time < now
                 is_expired = correct_end_time < now
-
-                # 如果兩者都符合（已經開始且已過期/結束），則跳過
                 if is_started and is_expired:
                     continue
 
+            filtered_items.append((m_id, meeting, correct_end_time))
+
+        # 計算分頁
+        total = len(filtered_items)
+        total_pages = max(1, (total + self.page_size - 1) // self.page_size)
+        self.current_page = min(self.current_page, total_pages - 1)
+
+        start = self.current_page * self.page_size
+        page_items = filtered_items[start : start + self.page_size]
+
+        # 渲染當頁項目
+        for m_id, meeting, correct_end_time in page_items:
             postfix = "(Repeat)" if meeting.repeat else ""
             display_name = f"{meeting.meeting_name} {postfix}"
 
@@ -175,6 +204,24 @@ class MeetingManagerPage(BasePage):
                 item.setText(item.text() + "- 已結束")
 
             self.view_list.addItem(item)
+
+        # 更新分頁控制
+        self.page_label.setText(f"第 {self.current_page + 1} / {total_pages} 頁")
+        self.prev_btn.setEnabled(self.current_page > 0)
+        self.next_btn.setEnabled(self.current_page < total_pages - 1)
+
+    def _go_prev_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._update_list_data()
+
+    def _go_next_page(self):
+        self.current_page += 1
+        self._update_list_data()
+
+    def _on_filter_changed(self):
+        self.current_page = 0
+        self._update_list_data()
 
     def _handle_delete_request(self):
         """處理刪除會議請求"""
