@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String
+from sqlalchemy import Boolean, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import Base, TZDateTime
 
 from .enums import LayoutType, MeetingType
 
@@ -63,11 +63,11 @@ class MeetingORM(Base):
     )
 
     start_time: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, doc="排程開始時間"
+        TZDateTime, nullable=False, doc="排程開始時間"
     )
 
     end_time: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, doc="排程結束時間"
+        TZDateTime, nullable=False, doc="排程結束時間"
     )
 
     repeat: Mapped[Boolean] = mapped_column(
@@ -79,7 +79,7 @@ class MeetingORM(Base):
     )
 
     repeat_end_date: Mapped[datetime] = mapped_column(
-        DateTime, nullable=True, doc="重複結束日期"
+        TZDateTime, nullable=True, doc="重複結束日期"
     )
 
     tasks: Mapped[List["TaskORM"]] = relationship(

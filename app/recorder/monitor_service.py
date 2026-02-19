@@ -38,7 +38,7 @@ from app.recorder.obs_manager import OBSManager
 from app.recorder.utils import action, kill_process
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
-from shared.config import config
+from shared.config import TAIPEI_TZ, config
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +183,7 @@ class MonitorService:
     ):
         """發送告警郵件（防重複）"""
         state = self.get_state(task_id)
-        now = datetime.now()
+        now = datetime.now(TAIPEI_TZ)
 
         # 防止 5 分鐘內重複告警（除非 force=True）
         if not force and state.last_alert_time:

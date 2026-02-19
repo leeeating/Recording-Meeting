@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import Base, TZDateTime
 
 from .enums import TaskStatus
 
@@ -31,9 +31,9 @@ class TaskORM(Base):
         Enum(TaskStatus), nullable=False, doc="排程狀態", default=TaskStatus.UPCOMING
     )
 
-    start_time: Mapped[datetime] = mapped_column(nullable=False, doc="任務開始時間")
+    start_time: Mapped[datetime] = mapped_column(TZDateTime, nullable=False, doc="任務開始時間")
 
-    end_time: Mapped[datetime] = mapped_column(nullable=False, doc="任務結束時間")
+    end_time: Mapped[datetime] = mapped_column(TZDateTime, nullable=False, doc="任務結束時間")
 
     duration_minutes: Mapped[int] = mapped_column(
         Integer, nullable=True, doc="任務持續時間（分鐘）"

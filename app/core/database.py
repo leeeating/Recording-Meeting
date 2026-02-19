@@ -2,10 +2,29 @@ import logging
 from datetime import datetime
 from typing import Generator
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import DateTime, TypeDecorator, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from shared.config import config
+from shared.config import TAIPEI_TZ, config
+
+
+class TZDateTime(TypeDecorator):
+    """自動將 datetime 轉為 TAIPEI_TZ aware"""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        """存入 DB 前：轉為 naive（去掉 tzinfo，保留 Taipei 時間值）"""
+        if value is not None and value.tzinfo is not None:
+            value = value.replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        """從 DB 讀出後：附加 TAIPEI_TZ"""
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=TAIPEI_TZ)
+        return value
 
 db_logger = logging.getLogger(__name__)
 
