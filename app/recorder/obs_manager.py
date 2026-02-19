@@ -94,7 +94,7 @@ class OBSManager:
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
 
-    def setup_obs_window(self, meeting_name):
+    def setup_obs_window(self, meeting_name=None):
         """
         確保 OBS 錄製的視窗正確對應到當前的 Webex 會議。
         Webex 視窗標題會隨 Host Name 更改，需動態搜尋並重新設定。
@@ -134,7 +134,7 @@ class OBSManager:
         with action("更改obs中的錄製視窗", logger, is_critical=False):
             if not cand_win:
                 raise ValueError(
-                    f"找不到會議 '{meeting_name}' 的 Webex 視窗。將維持上次的設定，可能導致錄製畫面全黑或錯誤。"
+                    "找不到當前會議的 Webex 視窗。將維持上次的設定，可能導致錄製畫面全黑或錯誤。"
                 )
 
             best_match = max(cand_win, key=lambda x: len(x[0]))

@@ -7,7 +7,7 @@
 3. 發送告警郵件
 
 架構：
-- MonitorState: 追蹤每個任務的監控狀態（重啟次數、告警時間）
+- MonitorState: 追蹤當前任務的監控狀態（重啟次數、告警時間）
 - MonitorService: 核心監控邏輯（進程檢查、重啟、告警）
 - monitor_recording(): APScheduler 調用的入口函數
 
@@ -26,7 +26,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 import psutil
 from sqlalchemy.orm import Session, joinedload
@@ -61,22 +61,24 @@ class MonitorState:
 class MonitorService:
     """錄影監控服務"""
 
-    # 全局狀態追蹤（每個 task_id 對應一個狀態）
-    _states: Dict[int, MonitorState] = {}
+    _state: Optional[MonitorState] = None
+    _current_task_id: Optional[int] = None
 
     def __init__(self):
         self.obs_mgr = OBSManager()
 
     def get_state(self, task_id: int) -> MonitorState:
-        """獲取或創建監控狀態"""
-        if task_id not in self._states:
-            self._states[task_id] = MonitorState()
-        return self._states[task_id]
+        """獲取或創建監控狀態（切換 task 時自動重置）"""
+        if self._current_task_id != task_id or self._state is None:
+            self._state = MonitorState()
+            self._current_task_id = task_id
+        return self._state
 
     def cleanup_state(self, task_id: int):
         """清理監控狀態"""
-        if task_id in self._states:
-            del self._states[task_id]
+        if self._current_task_id == task_id:
+            self._state = None
+            self._current_task_id = None
             logger.debug(f"Task {task_id}: 監控狀態已清理")
 
     def is_process_running(self, process_name: str) -> bool:
@@ -103,6 +105,7 @@ class MonitorService:
         """重啟 OBS 並恢復錄影"""
         meeting_type = task.meeting.meeting_type.upper()
         scene_name = (
+
             config.WEBEX_SCENE_NAME
             if meeting_type == "WEBEX"
             else config.ZOOM_SCENE_NAME
@@ -289,7 +292,7 @@ def monitor_recording(task_id: int):
         if not monitor_service.is_process_running("obs64.exe"):
             logger.warning(f"Task {task_id}: OBS 進程不存在")
             if not monitor_service.handle_obs_crash(task):
-                return  # 重啟失敗，任務已標記為 FAILED
+                return
             all_ok = False
 
         # 4. 檢查 OBS 錄影狀態

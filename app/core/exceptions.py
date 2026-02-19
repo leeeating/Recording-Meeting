@@ -25,6 +25,10 @@ class SchedulingError(BaseError):
 class ActionError(BaseError):
     pass
 
+
+class TaskOverlapError(BaseError):
+    pass
+
 def register_exception_handlers(app: FastAPI):
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request: Request, exc: NotFoundError):
@@ -38,6 +42,12 @@ def register_exception_handlers(app: FastAPI):
 
         return JSONResponse(
             status_code=400, content={"error": "排程失敗", "detail": exc.detail}
+        )
+
+    @app.exception_handler(TaskOverlapError)
+    async def task_overlap_handler(request: Request, exc: TaskOverlapError):
+        return JSONResponse(
+            status_code=409, content={"error": "任務時間重疊", "detail": exc.detail}
         )
 
     @app.exception_handler(Exception)

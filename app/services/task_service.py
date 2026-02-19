@@ -4,7 +4,7 @@ from typing import List
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.query import Query
-from app.core.exceptions import NotFoundError, SchedulingError
+from app.core.exceptions import NotFoundError, SchedulingError, TaskOverlapError
 from app.core.scheduler import scheduler
 from app.models import MeetingORM, TaskORM
 from app.models.enums import TaskStatus
@@ -42,6 +42,17 @@ class TaskService:
         created_tasks: list[TaskORM] = []
 
         for start_dt, end_dt in execute_time:
+            overlap = self.db.query(TaskORM).filter(
+                TaskORM.status.in_([TaskStatus.UPCOMING, TaskStatus.RECORDING]),
+                TaskORM.start_time < end_dt,
+                TaskORM.end_time > start_dt,
+            ).first()
+
+            if overlap:
+                raise TaskOverlapError(
+                    detail=f"任務時間 {start_dt} ~ {end_dt} 與現有任務 (Task {overlap.id}) 重疊"
+                )
+
             task_instance = TaskORM(
                 meeting_id=meeting.id,
                 status=TaskStatus.UPCOMING,
