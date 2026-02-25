@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -92,16 +93,18 @@ def start_recording(task_id: int):
             from app.recorder.monitor_service import monitor_recording
 
             try:
+                monitor_start = datetime.now() + timedelta(minutes=5)
                 scheduler.add_job(
                     monitor_recording,
                     args=[task_id],
                     trigger="interval",
-                    seconds=30,
+                    minutes=5,
+                    start_date=monitor_start,
                     id=f"task_monitor_{task_id}",
                     max_instances=1,
                     replace_existing=True,
                 )
-                logger.info(f"Task {task_id}: 監控任務已啟動（每 30 秒檢查）")
+                logger.info(f"Task {task_id}: 監控任務將於 5 分鐘後啟動")
             except Exception as e:
                 logger.warning(f"Task {task_id}: 監控任務啟動失敗 - {e}")
             # =======================================
