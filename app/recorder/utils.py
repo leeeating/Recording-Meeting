@@ -18,8 +18,7 @@ def maximize_window(window_spec):
     高度穩定的視窗最大化與聚焦方法
     """
     if not window_spec.exists(timeout=10):
-        logger.error("錯誤：找不到指定視窗")
-        return False
+        raise RuntimeError("找不到指定視窗")
 
     wrapper = window_spec.wrapper_object()
     print(wrapper)
