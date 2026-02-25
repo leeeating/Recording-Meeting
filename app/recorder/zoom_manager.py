@@ -96,7 +96,6 @@ class ZoomManager:
         我嘗試下來，這步驟的成功與否應該會依賴OBS開啟時是否有安全模式的提示框
         """
         meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
-        logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
 
         with action(
             "[Zoom會議]Zoom視窗最大化",
@@ -104,6 +103,8 @@ class ZoomManager:
             meeting_name=self.meeting_name,
             meeting_type="ZOOM",
         ):
+            meeting_window.wait("exists", timeout=5)
+            logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
             maximize_window(meeting_window)
 
         with action(
@@ -113,6 +114,7 @@ class ZoomManager:
             meeting_type="ZOOM",
         ):
             meeting_window.wait("ready", timeout=10)
+            logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
 
             btn = meeting_window.child_window(title="檢視", control_type="Button")
 
