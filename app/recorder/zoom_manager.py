@@ -107,6 +107,7 @@ class ZoomManager:
             logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
             maximize_window(meeting_window)
 
+        meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
         with action(
             "[Zoom會議]按下檢視按鈕",
             logger,
