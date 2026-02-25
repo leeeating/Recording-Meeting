@@ -122,7 +122,7 @@ class TaskService:
         )
 
         if not tasks:
-            self.logger.error(f"Unable to update task for Meeting ID {meeting.id}.")
+            self.logger.error(f"Meeting ID {meeting.id} has no UPCOMING tasks to update.")
             raise NotFoundError("Unable to update task for Meeting ID")
 
         for task in tasks:
