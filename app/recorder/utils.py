@@ -1,6 +1,7 @@
 import logging
 import time
 from contextlib import contextmanager
+from contextvars import ContextVar
 
 import psutil
 import pyautogui
@@ -11,6 +12,21 @@ import win32gui
 from app.core.exceptions import ActionError
 
 logger = logging.getLogger(__name__)
+
+current_task_id: ContextVar[int | None] = ContextVar("current_task_id", default=None)
+
+
+def _mark_task_error(task_id: int):
+    from app.core.database import database_engine
+    from app.models import TaskORM
+    from app.models.enums import TaskStatus
+    from sqlalchemy.orm import Session
+
+    with Session(database_engine) as db:
+        task = db.query(TaskORM).filter(TaskORM.id == task_id).first()
+        if task and task.status in (TaskStatus.RECORDING, TaskStatus.ERROR):
+            task.status = TaskStatus.ERROR
+            db.commit()
 
 
 def maximize_window(window_spec):
@@ -148,3 +164,6 @@ def action(
                     "meeting_type": meeting_type,
                 },
             )
+            tid = current_task_id.get(None)
+            if tid:
+                _mark_task_error(tid)

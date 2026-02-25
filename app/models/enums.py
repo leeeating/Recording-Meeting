@@ -26,4 +26,5 @@ class TaskStatus(str, Enum):
     UPCOMING = "upcoming"
     RECORDING = "recording"
     COMPLETED = "completed"
+    ERROR = "error"
     FAILED = "failed"

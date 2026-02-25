@@ -14,7 +14,7 @@ from app.recorder.zoom_manager import ZoomManager
 from shared.config import config
 from shared.logger import update_addressee
 
-from .utils import action, kill_process
+from .utils import action, current_task_id, kill_process
 
 logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
@@ -37,6 +37,7 @@ Error Aciotn 則只會在log中記錄，錄影會繼續，但輸出的畫面會�
 
 
 def start_recording(task_id: int):
+    current_task_id.set(task_id)
     task = None
     with Session(database_engine) as db:
         task = (
@@ -202,7 +203,7 @@ def end_recording(task_id: int):
             kill_meeting_process(meeting_type)
 
             # 4. 更新任務狀態為完成
-            if task.status == TaskStatus.RECORDING:
+            if task.status in (TaskStatus.RECORDING, TaskStatus.ERROR):
                 task.status = TaskStatus.COMPLETED
                 db.commit()
                 logger.info(

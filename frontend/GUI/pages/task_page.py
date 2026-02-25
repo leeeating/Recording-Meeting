@@ -177,10 +177,13 @@ class TaskManagerPage(BasePage):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
                 # 特殊邏輯：如果是狀態欄位且為「FAILED」，可以加顏色（選配）
-                if col_idx == 2 and "failed" in text.lower():
+                if col_idx == 2:
                     from PyQt6.QtGui import QColor
 
-                    item.setForeground(QColor("#e74c3c"))  # 紅色
+                    if "failed" in text.lower():
+                        item.setForeground(QColor("#e74c3c"))  # 紅色
+                    elif "error" in text.lower():
+                        item.setForeground(QColor("#e67e22"))  # 橘色
 
                 self.result_table.setItem(row_idx, col_idx, item)
 
@@ -200,10 +203,11 @@ class TaskManagerPage(BasePage):
         upcoming = counter.get("upcoming", 0)
         recording = counter.get("recording", 0)
         completed = counter.get("completed", 0)
+        error = counter.get("error", 0)
         failed = counter.get("failed", 0)
-        finished = completed + failed
-        rate = f"{completed / finished * 100:.0f}%" if finished else "-"
+        finished = completed + error + failed
+        rate = f"{(completed + error) / finished * 100:.0f}%" if finished else "-"
         self.status_label.setText(
             f"共 {total} 筆 ｜ 待執行 {upcoming} ｜ 錄製中 {recording}"
-            f" ｜ 完成 {completed} ｜ 失敗 {failed} ｜ 成功率 {rate}"
+            f" ｜ 完成 {completed} ｜ 錯誤 {error} ｜ 失敗 {failed} ｜ 成功率 {rate}"
         )
