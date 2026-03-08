@@ -75,8 +75,11 @@ def update_addressee(new_email: str):
 
 
 def setup_logger():
+
     logs_dir = Path("logs")
+    archive_dir = logs_dir / "backend"
     logs_dir.mkdir(exist_ok=True)
+    archive_dir.mkdir(exist_ok=True)
 
     curr_folder = Path(__file__).parent
     config_path = curr_folder / "log_config.yaml"
@@ -92,6 +95,22 @@ def setup_logger():
         email_h["credentials"] = [config.DEFAULT_USER_EMAIL, config.EMAIL_APP_PASSWORD]
 
     logging.config.dictConfig(logging_dict)
+
+    def _rotate_to_backend(default_name: str) -> str:
+        """將 rotated 檔案移到 logs/backend/ 目錄"""
+        log_path = Path(default_name)
+        return str(archive_dir / log_path.name)
+
+    for _, logger_obj in logging.root.manager.loggerDict.items():
+        if not isinstance(logger_obj, logging.Logger):
+            continue
+        for handler in logger_obj.handlers:
+            if hasattr(handler, "namer"):
+                handler.namer = _rotate_to_backend  # type: ignore[union-attr]
+
+    for handler in logging.root.handlers:
+        if hasattr(handler, "namer"):
+            handler.namer = _rotate_to_backend  # type: ignore[union-attr]
     register_reload_callback(_on_config_reload)
 
 

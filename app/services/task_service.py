@@ -128,6 +128,7 @@ class TaskService:
         for task in tasks:
             self.delete_task(task.id)
 
+        self.db.flush()
         tasks = self.create_task(meeting)
 
         for task in tasks:
