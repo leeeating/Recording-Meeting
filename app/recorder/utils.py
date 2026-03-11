@@ -33,27 +33,41 @@ def find_window_hwnd(title_pattern: str, timeout: int = 30) -> int | None:
     """透過 Win32 EnumWindows 找到符合標題的視窗 hwnd"""
     import re
 
+    logger.info(f"開始搜尋視窗 (pattern='{title_pattern}', timeout={timeout}s)")
     deadline = time.time() + timeout
     pattern = re.compile(title_pattern)
+    attempt = 0
 
     while time.time() < deadline:
+        attempt += 1
         result = []
 
         def _callback(hwnd, _):
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
                 if pattern.search(title):
-                    result.append(hwnd)
+                    result.append((hwnd, title))
             return True
 
         win32gui.EnumWindows(_callback, None)
         if result:
+            for hwnd, title in result:
+                logger.debug(f"  匹配視窗: hwnd={hwnd}, title='{title}'")
+
             fg = win32gui.GetForegroundWindow()
-            if fg in result:
-                return fg
-            return result[0]
+            chosen_hwnd, chosen_title = next(
+                ((h, t) for h, t in result if h == fg), result[0]
+            )
+            logger.info(
+                f"找到視窗: hwnd={chosen_hwnd}, title='{chosen_title}' "
+                f"(共 {len(result)} 個匹配, 第 {attempt} 次搜尋)"
+            )
+            return chosen_hwnd
+
+        logger.debug(f"第 {attempt} 次搜尋未找到匹配視窗")
         time.sleep(1)
 
+    logger.warning(f"搜尋視窗超時 (pattern='{title_pattern}', {timeout}s)")
     return None
 
 
