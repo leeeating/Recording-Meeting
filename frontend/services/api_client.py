@@ -85,6 +85,15 @@ class ApiClient:
         except Exception as e:
             self._handle_error(e)
 
+    def update_task_status(self, task_id: int, status: str):
+        try:
+            url = f"{self.task_router}/{task_id}"
+            response = requests.patch(url, json={"status": status}, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            self._handle_error(e)
+
     # ----------- task page -----------
     def get_tasks(self, params: TaskQuerySchema):
         """

@@ -2,6 +2,7 @@ import logging
 
 from PyQt6.QtCore import QDateTime, Qt
 from PyQt6.QtWidgets import (
+    QComboBox,
     QDateTimeEdit,
     QGroupBox,
     QHBoxLayout,
@@ -133,13 +134,15 @@ class TaskManagerPage(BasePage):
             callback=self._render_table,
         )
 
+    STATUS_OPTIONS = ["upcoming", "recording", "completed", "error", "failed"]
+    STATUS_COLORS = {"failed": "#e74c3c", "error": "#e67e22"}
+
     def _render_table(self, data_list: list[TaskResponseSchema]):
         """
         將 API 回傳的 List[TaskResponseSchema] 渲染至表格
         """
         self.result_table.setRowCount(0)
 
-        # 防呆：如果請求失敗或資料為空
         if data_list is None:
             self.update_summary(0)
             return
@@ -147,7 +150,6 @@ class TaskManagerPage(BasePage):
         self.result_table.setRowCount(len(data_list))
 
         for row_idx, task in enumerate(data_list):
-            # 1. 預先處理格式化欄位
             raw_start = task.get("start_time") if isinstance(task, dict) else task.start_time
             if isinstance(raw_start, str):
                 start_time_str = raw_start[:16].replace("-", "/").replace("T", " ")
@@ -160,42 +162,63 @@ class TaskManagerPage(BasePage):
             status_text = raw_status.value if hasattr(raw_status, "value") else str(raw_status)
 
             meeting_name = task.get("meeting_name", "") if isinstance(task, dict) else task.meeting_name
+            task_id = task.get("id") if isinstance(task, dict) else task.id
 
-            # 2. 定義顯示資料清單 (需與 self.header = ["會議名稱", "日期時間", "狀態"] 順序一致)
-            display_data = [
-                meeting_name,  # 會議名稱
-                start_time_str,  # 日期時間
-                status_text,  # 狀態
-            ]
+            # 會議名稱 (存 task_id 到 UserRole)
+            name_item = QTableWidgetItem(str(meeting_name))
+            name_item.setFlags(name_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            name_item.setData(Qt.ItemDataRole.UserRole, task_id)
+            self.result_table.setItem(row_idx, 0, name_item)
 
-            for col_idx, text in enumerate(display_data):
-                item = QTableWidgetItem(str(text))
+            # 日期時間
+            time_item = QTableWidgetItem(start_time_str)
+            time_item.setFlags(time_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.result_table.setItem(row_idx, 1, time_item)
 
-                item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            # 狀態下拉選單
+            combo = QComboBox()
+            combo.addItems(self.STATUS_OPTIONS)
+            combo.setCurrentText(status_text)
+            self._apply_combo_color(combo, status_text)
+            combo.currentTextChanged.connect(
+                lambda new_status, r=row_idx: self._on_status_changed(r, new_status)
+            )
+            self.result_table.setCellWidget(row_idx, 2, combo)
 
-                # 文字置中對齊
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._update_summary_from_table()
 
-                # 特殊邏輯：如果是狀態欄位且為「FAILED」，可以加顏色（選配）
-                if col_idx == 2:
-                    from PyQt6.QtGui import QColor
+    def _apply_combo_color(self, combo: QComboBox, status: str):
+        color = self.STATUS_COLORS.get(status, "")
+        if color:
+            combo.setStyleSheet(f"QComboBox {{ color: {color}; }}")
+        else:
+            combo.setStyleSheet("")
 
-                    if "failed" in text.lower():
-                        item.setForeground(QColor("#e74c3c"))  # 紅色
-                    elif "error" in text.lower():
-                        item.setForeground(QColor("#e67e22"))  # 橘色
+    def _on_status_changed(self, row: int, new_status: str):
+        task_id = self.result_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        combo = self.result_table.cellWidget(row, 2)
+        self._apply_combo_color(combo, new_status)
 
-                self.result_table.setItem(row_idx, col_idx, item)
+        self.run_request(
+            self.api_client.update_task_status,
+            task_id=task_id,
+            status=new_status,
+            name="更新任務狀態",
+            callback=lambda _: self._update_summary_from_table(),
+        )
 
-        # 統計各狀態數量
+    def _update_summary_from_table(self):
         from collections import Counter
 
         statuses = []
-        for t in data_list:
-            raw = t.get("status") if isinstance(t, dict) else t.status
-            statuses.append(raw.value if hasattr(raw, "value") else str(raw))
+        for row in range(self.result_table.rowCount()):
+            combo = self.result_table.cellWidget(row, 2)
+            if combo:
+                statuses.append(combo.currentText())
         counter = Counter(statuses)
-        self.update_summary(len(data_list), counter)
+        self.update_summary(len(statuses), counter)
 
     def update_summary(self, total: int, counter=None):
         if counter is None:
