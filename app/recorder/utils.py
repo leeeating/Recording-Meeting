@@ -29,6 +29,34 @@ def _mark_task_error(task_id: int):
             db.commit()
 
 
+def find_window_hwnd(title_pattern: str, timeout: int = 30) -> int | None:
+    """透過 Win32 EnumWindows 找到符合標題的視窗 hwnd"""
+    import re
+
+    deadline = time.time() + timeout
+    pattern = re.compile(title_pattern)
+
+    while time.time() < deadline:
+        result = []
+
+        def _callback(hwnd, _):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                if pattern.search(title):
+                    result.append(hwnd)
+            return True
+
+        win32gui.EnumWindows(_callback, None)
+        if result:
+            fg = win32gui.GetForegroundWindow()
+            if fg in result:
+                return fg
+            return result[0]
+        time.sleep(1)
+
+    return None
+
+
 def maximize_window(window_spec):
     """
     高度穩定的視窗最大化與聚焦方法
@@ -137,14 +165,16 @@ def kill_process(process_name):
 @contextmanager
 def action(
     action_name: str,
-    logger: logging.Logger,
+    logger: logging.Logger = logger,
     is_critical=False,
-    meeting_name: str = "",
-    meeting_type: str = "",
+    setting: dict | None = None,
 ):
     """
     統一處理每步驟的error
+    setting: {"meeting_name": str, "meeting_type": str, "logger": Logger}
     """
+    setting = setting or {}
+    logger = setting.get("logger", logger)
     logger.debug(f"開始執行 [{action_name}] 操作")
     try:
         yield
@@ -160,8 +190,8 @@ def action(
                 f"操作 [{action_name}] 失敗: {e}",
                 extra={
                     "send_email": True,
-                    "meeting_name": meeting_name,
-                    "meeting_type": meeting_type,
+                    "meeting_name": setting.get("meeting_name", ""),
+                    "meeting_type": setting.get("meeting_type", ""),
                 },
             )
             tid = current_task_id.get(None)

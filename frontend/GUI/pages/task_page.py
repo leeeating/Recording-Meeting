@@ -59,7 +59,7 @@ class TaskManagerPage(BasePage):
         header = self.result_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.result_table.setColumnWidth(2, 130)
+        self.result_table.setColumnWidth(2, 160)
 
         # --- C. 統計區 ---
         self.status_label = QLabel("共顯示 0 筆資料")

@@ -226,6 +226,6 @@ def kill_meeting_process(meeting_type: str | None):
         logger.warning("Invalid meeting type. Must be either 'ZOOM' or 'WEBEX'.")
         return
 
-    with action(f"關閉{meeting_type}", logger):
+    with action(f"關閉{meeting_type}"):
         Pname = PROCESS_MAP.get(meeting_type)
         kill_process(Pname)

@@ -105,13 +105,12 @@ class MonitorService:
         """重啟 OBS 並恢復錄影"""
         meeting_type = task.meeting.meeting_type.upper()
         scene_name = (
-
             config.WEBEX_SCENE_NAME
             if meeting_type == "WEBEX"
             else config.ZOOM_SCENE_NAME
         )
 
-        with action(f"重啟 OBS (Task {task.id})", logger):
+        with action(f"重啟 OBS (Task {task.id})"):
             try:
                 self.obs_mgr.launch_obs()
                 time.sleep(1)
@@ -141,7 +140,7 @@ class MonitorService:
             logger.error(f"未知的會議類型: {meeting_type}")
             return False
 
-        with action(f"重啟會議平台 (Task {task.id})", logger):
+        with action(f"重啟會議平台 (Task {task.id})"):
             try:
                 # 先告警（因為可能卡在等待室）
                 self.send_alert(
@@ -257,9 +256,6 @@ monitor_service = MonitorService()
 
 
 def monitor_recording(task_id: int):
-    """
-    監控錄影狀態（APScheduler 每 30 秒調用）
-    """
     logger.debug(f"Task {task_id}: 開始監控檢查")
 
     with Session(database_engine) as db:
@@ -281,7 +277,6 @@ def monitor_recording(task_id: int):
             logger.info(
                 f"Task {task_id} 狀態不是 RECORDING（當前: {task.status}），停止監控"
             )
-            monitor_service.cleanup_state(task_id)
             return
 
         meeting_type = task.meeting.meeting_type.upper()
@@ -295,11 +290,16 @@ def monitor_recording(task_id: int):
                 return
             all_ok = False
 
-        # 4. 檢查 OBS 錄影狀態
+        # 4. 檢查 OBS 錄影狀態（進程活著但沒在錄，嘗試單獨恢復錄影）
         if all_ok and not monitor_service.check_obs_recording_status():
-            logger.warning(f"Task {task_id}: OBS 未錄影")
-            if not monitor_service.handle_obs_crash(task):
-                return
+            logger.warning(f"Task {task_id}: OBS 未錄影，嘗試恢復")
+            try:
+                monitor_service.obs_mgr.start_recording()
+                logger.info(f"Task {task_id}: OBS 錄影已恢復")
+            except Exception as e:
+                logger.error(f"Task {task_id}: OBS 恢復錄影失敗 - {e}，嘗試完整重啟")
+                if not monitor_service.handle_obs_crash(task):
+                    return
             all_ok = False
 
         # 5. 檢查會議平台進程

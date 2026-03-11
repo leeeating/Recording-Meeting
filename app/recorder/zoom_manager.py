@@ -7,9 +7,11 @@ from urllib.parse import parse_qs, urlparse
 from shared.config import config
 
 if sys.platform == "win32":
+    import win32con
+    import win32gui
     from pywinauto import Desktop
 
-from .utils import action, maximize_window
+from .utils import action, find_window_hwnd
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,11 @@ class ZoomManager:
         self.meeting_id = meeting_id
         self.password = password
         self.layout = layout
+        self.setting = {
+            "meeting_name": meeting_name,
+            "meeting_type": "ZOOM",
+            "logger": logger,
+        }
 
         logger.info(f"ZoomManager initialized for: {self.meeting_name}")
 
@@ -53,7 +60,7 @@ class ZoomManager:
         logger.debug(f"Starting Zoom meeting {self.meeting_name} ")
         zoom_meeting_url = self._parse_meeting_url()
 
-        with action("ZOOM開啟URL Schemas", logger, is_critical=True):
+        with action("ZOOM開啟URL Schemas", is_critical=True, setting=self.setting):
             webbrowser.open(zoom_meeting_url)
 
         time.sleep(2)
@@ -61,7 +68,7 @@ class ZoomManager:
         ## 在執行[等待連線中]、[等待主持人允許] 會因為執行權限的問題，出現偵測視窗失敗
         ## 偵測失敗後，會導致Timeout檢查一起失敗，但不會跳出錯誤提醒
         ## 目前使用[管理員權限]執行可以解決，但無法確保其他bug出現
-        with action("[連線中]等待連線中", logger, is_critical=True):
+        with action("[連線中]等待連線中", is_critical=True, setting=self.setting):
             connect_window = Desktop(backend="uia").window(title_re=".*連線中.*")
             logger.debug(connect_window.exists())
             connect_window.wait_not(
@@ -74,7 +81,9 @@ class ZoomManager:
         time.sleep(5)
         logger.debug("after sleep")
 
-        with action("[Zoom Workplace]等待主持人允許", logger, is_critical=True):
+        with action(
+            "[Zoom Workplace]等待主持人允許", is_critical=True, setting=self.setting
+        ):
             main_window = Desktop(backend="uia").window(
                 title="Zoom Workplace",
                 class_name="zWaitingRoomWndClass",
@@ -95,44 +104,48 @@ class ZoomManager:
         Don't need point of each layout button.
         我嘗試下來，這步驟的成功與否應該會依賴OBS開啟時是否有安全模式的提示框
         """
-        meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
-
         with action(
             "[Zoom會議]Zoom視窗最大化",
-            logger,
-            meeting_name=self.meeting_name,
-            meeting_type="ZOOM",
+            setting=self.setting,
         ):
-            meeting_window.wait("exists", timeout=5)
-            logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
-            maximize_window(meeting_window)
+            self._hwnd = find_window_hwnd("Zoom 會議", timeout=30)
+            if not self._hwnd:
+                raise RuntimeError("找不到 Zoom 會議視窗")
+            
+            win32gui.ShowWindow(self._hwnd, win32con.SW_MAXIMIZE)
+            win32gui.SetForegroundWindow(self._hwnd)
+            logger.info(f"已透過 Win32 最大化 Zoom 視窗 (hwnd={self._hwnd})")
+            time.sleep(3)
 
-        meeting_window = Desktop(backend="uia").window(title_re=".*Zoom 會議.*")
+        meeting_window = Desktop(backend="uia").window(handle=self._hwnd)
         with action(
             "[Zoom會議]按下檢視按鈕",
-            logger,
-            meeting_name=self.meeting_name,
-            meeting_type="ZOOM",
+            setting=self.setting,
         ):
-            meeting_window.wait("ready", timeout=10)
+            meeting_window.wait("ready", timeout=15)
             logger.info(f"[Zoom 會議] is exists: {meeting_window.exists()}")
+
+            # 移動滑鼠到視窗中央，觸發 toolbar 顯示
+            rect = meeting_window.rectangle()
+            import pyautogui
+
+            pyautogui.moveTo(rect.mid_point().x, rect.mid_point().y)
+            time.sleep(1)
 
             btn = meeting_window.child_window(title="檢視", control_type="Button")
 
-            if btn.exists(timeout=5):
-                btn.wait("visible", timeout=3)
+            if btn.exists(timeout=10):
+                btn.wait("visible", timeout=5)
                 try:
-                    btn.iface_invoke.Invoke()  # 邏輯點擊
+                    btn.iface_invoke.Invoke()
                 except Exception:
-                    btn.click_input()  # 如果邏輯點擊失敗，再用物理點擊
+                    btn.click_input()
 
         time.sleep(0.5)
 
         with action(
             "[Zoom會議]選擇排版",
-            logger,
-            meeting_name=self.meeting_name,
-            meeting_type="ZOOM",
+            setting=self.setting,
         ):
             layout_btn = meeting_window.child_window(
                 title_re=f".*{self.layout}.*",

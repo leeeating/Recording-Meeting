@@ -35,7 +35,7 @@ class OBSManager:
         #     # 再次嘗試kill
         #     return
 
-        with action("啟動 OBS", logger, is_critical=True):
+        with action("啟動 OBS", is_critical=True):
             subprocess.Popen(
                 [str(self.obs_path)],
                 cwd=Path(self.obs_path).resolve().parent,
@@ -44,7 +44,7 @@ class OBSManager:
         self._check_mode()
 
     def connect(self, retries=5, timeout=5):
-        with action("連線 OBS", logger, is_critical=True):
+        with action("連線 OBS", is_critical=True):
             for n in range(retries):
                 try:
                     self.client = obs.ReqClient(
@@ -66,11 +66,11 @@ class OBSManager:
         """
         這個方法會讓OBS啟動時跳出，安全模式的提示框，不建議使用
         """
-        with action("關閉OBS by psutil", logger):
+        with action("關閉OBS by psutil"):
             kill_process(process_name="obs64.exe")
 
     def kill_obs_process_by_taskkill(self):
-        with action("關閉OBS by taskkill", logger):
+        with action("關閉OBS by taskkill"):
             result = subprocess.run(
                 ["taskkill", "/IM", "obs64.exe", "/T"],
                 capture_output=True,
@@ -89,7 +89,7 @@ class OBSManager:
             logger.warning("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
     def setup_obs_scene(self, scene_name: str):
-        with action(f"配置場景: {scene_name}", logger, is_critical=True):
+        with action(f"配置場景: {scene_name}", is_critical=True):
             self._check_connect()
             self.client.set_current_program_scene(scene_name)
             # TODO: audio check
@@ -131,7 +131,7 @@ class OBSManager:
             if have_keyword:
                 cand_win.append((current_item_name, current_item_value))
 
-        with action("更改obs中的錄製視窗", logger, is_critical=False):
+        with action("更改obs中的錄製視窗", is_critical=False):
             if not cand_win:
                 raise ValueError(
                     "找不到當前會議的 Webex 視窗。將維持上次的設定，可能導致錄製畫面全黑或錯誤。"
@@ -149,12 +149,12 @@ class OBSManager:
             )
 
     def disconnect(self):
-        with action("斷開 OBS 連線", logger):
+        with action("斷開 OBS 連線"):
             self._check_connect()
             self.client.disconnect()
 
     def start_recording(self):
-        with action("啟動錄影", logger, is_critical=True):
+        with action("啟動錄影", is_critical=True):
             self._check_connect()
             status = self.client.get_record_status()
 
@@ -165,7 +165,7 @@ class OBSManager:
             self.client.start_record()
 
     def stop_recording(self):
-        with action("停止錄影", logger):
+        with action("停止錄影"):
             self._check_connect()
             status = self.client.get_record_status()
 
@@ -189,7 +189,7 @@ class OBSManager:
 
     def _check_mode(self):
         """監控並自動點擊 OBS 安全模式彈窗"""
-        with action("檢查安全模式彈窗", logger):
+        with action("檢查安全模式彈窗"):
             try:
                 obs_window = Desktop(backend="uia").window(
                     title_re=".*偵測到 OBS Studio 當機.*|.*OBS Studio.*"

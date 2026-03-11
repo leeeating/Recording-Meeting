@@ -9,11 +9,13 @@ import pyautogui
 from typing_extensions import deprecated
 
 if sys.platform == "win32":
+    import win32con
+    import win32gui
     from pywinauto import Desktop
 
 from shared.config import config
 
-from .utils import action, copy_paste, maximize_window, set_foreground
+from .utils import action, copy_paste, find_window_hwnd, maximize_window, set_foreground
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,11 @@ class WebexManager:
         self.meeting_id = meeting_id
         self.password = password
         self.layout = layout
+        self.setting = {
+            "meeting_name": meeting_name,
+            "meeting_type": "WEBEX",
+            "logger": logger,
+        }
 
     def join_meeting_and_change_layout(self):
         """
@@ -62,12 +69,14 @@ class WebexManager:
         """
         Open webex app and typing meeting information
         """
-        with action("啟動Webex應用程式", logger, is_critical=True):
+        with action("啟動Webex應用程式", is_critical=True, setting=self.setting):
             subprocess.Popen([config.WEBEX_APP_PATH])
 
         time.sleep(5)
 
-        with action("按下[加入會議]按鈕，進入輸入頁面", logger, is_critical=True):
+        with action(
+            "按下[加入會議]按鈕，進入輸入頁面", is_critical=True, setting=self.setting
+        ):
             main_window = Desktop(backend="uia").window(
                 title="Webex", class_name="MainWindow"
             )
@@ -91,12 +100,12 @@ class WebexManager:
         使用內部 self.meeting_url 進入
         deprecated
         """
-        with action("開啟Webex URL", logger):
+        with action("開啟Webex URL", setting=self.setting):
             webbrowser.open(self.meeting_url)
 
         time.sleep(5)
 
-        with action("按下[加入會議]按鈕", logger):
+        with action("按下[加入會議]按鈕", setting=self.setting):
             waiting_window = Desktop(backend="uia").window(title_re=".*準備加入.*")
             waiting_window.set_focus()
             waiting_window.child_window(
@@ -106,11 +115,11 @@ class WebexManager:
 
     def _input_meeting_info(self):
         if self.meeting_url:
-            with action("輸入URL", logger, is_critical=True):
+            with action("輸入URL", is_critical=True, setting=self.setting):
                 copy_paste(self.meeting_url)
 
         else:
-            with action("輸入ID/PW", logger, is_critical=True):
+            with action("輸入ID/PW", is_critical=True, setting=self.setting):
                 copy_paste(self.meeting_id)
                 time.sleep(3)
 
@@ -125,7 +134,7 @@ class WebexManager:
 
         time.sleep(3)
 
-        with action("按下[加入會議]按鈕", logger, is_critical=True):
+        with action("按下[加入會議]按鈕", is_critical=True, setting=self.setting):
             # waiting_window = Desktop(backend="uia").window(title_re=".*準備加入.*")
             # waiting_window.set_focus()
             # btn = waiting_window.child_window(
@@ -144,16 +153,18 @@ class WebexManager:
         # time.sleep(5)
         with action(
             "點擊[版面配置]按鈕",
-            logger,
-            meeting_name=self.meeting_name,
-            meeting_type="WEBEX",
+            setting=self.setting,
         ):
-            meeting_window = Desktop(backend="uia").window(
-                title_re=f".*({self.meeting_name}|meeting|Personal Room).*"
+            hwnd = find_window_hwnd(
+                f"{self.meeting_name}|meeting|Personal Room", timeout=30
             )
-            logger.info(f"win name {meeting_window.window_text()}")
-            set_foreground(meeting_window)
-            maximize_window(meeting_window)
+            if not hwnd:
+                raise RuntimeError("找不到 Webex 會議視窗")
+
+            meeting_window = Desktop(backend="uia").window(handle=hwnd)
+            logger.info(f"window name {meeting_window.window_text()}")
+            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+            win32gui.SetForegroundWindow(hwnd)
             btn = meeting_window.child_window(
                 title_re="版面配置",
                 auto_id="ScannedByVDI",
@@ -168,9 +179,7 @@ class WebexManager:
             except Exception as e:
                 raise TimeoutError(f"未出現[版面配置]，因為等待主持人允許超時, {e}")
 
-        with action(
-            "選擇排版", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"
-        ):
+        with action("選擇排版", setting=self.setting):
             attr_name = f"WEBEX_{self.layout.upper()}_POINT"
             point_str = getattr(config, attr_name, None)
             if point_str:
@@ -181,9 +190,7 @@ class WebexManager:
                 logger.warning(e)
                 raise ValueError(e)
 
-        with action(
-            "靜音", logger, meeting_name=self.meeting_name, meeting_type="WEBEX"
-        ):
+        with action("靜音", setting=self.setting):
             btn = meeting_window.child_window(
                 title_re="(?<!取消)靜音.*",
                 control_type="Button",
