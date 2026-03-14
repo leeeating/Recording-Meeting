@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -17,10 +18,11 @@ current_task_id: ContextVar[int | None] = ContextVar("current_task_id", default=
 
 
 def _mark_task_error(task_id: int):
+    from sqlalchemy.orm import Session
+
     from app.core.database import database_engine
     from app.models import TaskORM
     from app.models.enums import TaskStatus
-    from sqlalchemy.orm import Session
 
     with Session(database_engine) as db:
         task = db.query(TaskORM).filter(TaskORM.id == task_id).first()
@@ -31,7 +33,6 @@ def _mark_task_error(task_id: int):
 
 def find_window_hwnd(title_pattern: str, timeout: int = 30) -> int | None:
     """透過 Win32 EnumWindows 找到符合標題的視窗 hwnd"""
-    import re
 
     logger.info(f"開始搜尋視窗 (pattern='{title_pattern}', timeout={timeout}s)")
     deadline = time.time() + timeout
@@ -92,7 +93,7 @@ def maximize_window(window_spec):
         # 執行最大化 (SW_MAXIMIZE = 3)
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
         logger.info(f"已透過 Win32 強制最大化 Handle: {hwnd}")
-    
+
     # 2. 處理無 Handle 或 Win32 失效（備案：UIA 模式）
     else:
         try:
@@ -105,12 +106,13 @@ def maximize_window(window_spec):
     # 最大化後視窗座標會劇烈變動，必須等待 ready
     window_spec.wait("ready", timeout=5)
     wrapper.set_focus()
-    
+
     # 額外保險：確保視窗真的在最前面
     if hwnd:
         win32gui.SetForegroundWindow(hwnd)
 
     return True
+
 
 def set_foreground(window):
     if not window.exists():

@@ -8,11 +8,12 @@ import obsws_python as obs
 import psutil
 
 if sys.platform == "win32":
+    import win32gui
     from pywinauto import Desktop
 
 from shared.config import config
 
-from .utils import action, kill_process
+from .utils import action, find_window_hwnd, kill_process
 
 logger = logging.getLogger(__name__)
 
@@ -97,51 +98,51 @@ class OBSManager:
     def setup_obs_window(self, meeting_name=None):
         """
         確保 OBS 錄製的視窗正確對應到當前的 Webex 會議。
-        Webex 視窗標題會隨 Host Name 更改，需動態搜尋並重新設定。
+        優先用 hwnd 精確比對，失敗再用關鍵字比對。
         """
-        window_keyword = ["CiscoCollabHost.exe"]
-        try:
+        with action("更改obs中的錄製視窗", is_critical=False):
             resp = self.client.get_input_properties_list_property_items(
                 "webex.exe", "window"
             )
-
             items = getattr(resp, "property_items", [])
 
-        except Exception as e:
-            logger.error(f"無法獲取 OBS 來源 webex.exe 的屬性: {e}")
-            raise
+            for item in items:
+                logger.debug(f"OBS 視窗選項: {item['itemName']}")
 
-        target_value = None
-        target_name = None
+            target_name = None
+            target_value = None
 
-        cand_win = []
-        for item in items:
-            current_item_name = item["itemName"]
-            current_item_value = item["itemValue"]
-
-            print(current_item_name)
-            print(current_item_value)
-            print()
-
-            have_keyword = any(
-                keyword.lower() in current_item_name.lower()
-                for keyword in window_keyword
+            # 方法一：用 hwnd 取得精確標題比對
+            hwnd = find_window_hwnd(
+                f"{meeting_name}|meeting|Personal Room" if meeting_name else "CiscoCollabHost",
+                timeout=10,
             )
+            if hwnd:
+                title = win32gui.GetWindowText(hwnd)
+                logger.info(f"hwnd={hwnd}, 視窗標題: '{title}'")
+                for item in items:
+                    if title in item["itemName"]:
+                        target_name = item["itemName"]
+                        target_value = item["itemValue"]
+                        break
 
-            if have_keyword:
-                cand_win.append((current_item_name, current_item_value))
+            # 方法二：fallback 用關鍵字比對
+            if not target_value:
+                logger.info("hwnd 比對失敗，改用關鍵字比對")
+                cand_win = [
+                    (item["itemName"], item["itemValue"])
+                    for item in items
+                    if "CiscoCollabHost.exe".lower() in item["itemName"].lower()
+                ]
+                if cand_win:
+                    target_name, target_value = max(cand_win, key=lambda x: len(x[0]))
 
-        with action("更改obs中的錄製視窗", is_critical=False):
-            if not cand_win:
+            if not target_value:
                 raise ValueError(
                     "找不到當前會議的 Webex 視窗。將維持上次的設定，可能導致錄製畫面全黑或錯誤。"
                 )
 
-            best_match = max(cand_win, key=lambda x: len(x[0]))
-            target_name, target_value = best_match
-
-            logger.info(f"Setting recording window to: {target_name}")
-
+            logger.info(f"設定 OBS 錄製視窗: {target_name}")
             self.client.set_input_settings(
                 name="webex.exe",
                 settings={"window": target_value},
@@ -172,6 +173,11 @@ class OBSManager:
             if not status.output_active:  # type: ignore
                 logger.warning("OBS 目前並未錄影，跳過停止指令")
                 return
+
+            # duration_ms = status.output_duration  # type: ignore
+            # hours, remainder = divmod(int(duration_ms / 1000), 3600)
+            # minutes, seconds = divmod(remainder, 60)
+            # logger.info(f"錄影時長: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
             self.client.stop_record()
 

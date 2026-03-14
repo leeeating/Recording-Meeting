@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 from shared.config import config
 
-from .utils import action, copy_paste, find_window_hwnd, maximize_window, set_foreground
+from .utils import action, copy_paste, find_window_hwnd, set_foreground
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,8 @@ import time
 import webbrowser
 from urllib.parse import parse_qs, urlparse
 
+import pyautogui
+
 from shared.config import config
 
 if sys.platform == "win32":
@@ -111,7 +113,7 @@ class ZoomManager:
             self._hwnd = find_window_hwnd("Zoom 會議", timeout=30)
             if not self._hwnd:
                 raise RuntimeError("找不到 Zoom 會議視窗")
-            
+
             win32gui.ShowWindow(self._hwnd, win32con.SW_MAXIMIZE)
             win32gui.SetForegroundWindow(self._hwnd)
             logger.info(f"已透過 Win32 最大化 Zoom 視窗 (hwnd={self._hwnd})")
@@ -127,19 +129,20 @@ class ZoomManager:
 
             # 移動滑鼠到視窗中央，觸發 toolbar 顯示
             rect = meeting_window.rectangle()
-            import pyautogui
-
-            pyautogui.moveTo(rect.mid_point().x, rect.mid_point().y)
-            time.sleep(1)
-
+            mid_x, mid_y = rect.mid_point().x, rect.mid_point().y
             btn = meeting_window.child_window(title="檢視", control_type="Button")
 
-            if btn.exists(timeout=10):
-                btn.wait("visible", timeout=5)
-                try:
-                    btn.iface_invoke.Invoke()
-                except Exception:
-                    btn.click_input()
+            for i in range(20):
+                # 持續小幅移動滑鼠，防止 toolbar 消失
+                offset = 5 if i % 2 == 0 else -5
+                pyautogui.moveTo(mid_x + offset, mid_y)
+
+                if btn.exists(timeout=0.5):
+                    try:
+                        btn.iface_invoke.Invoke()
+                    except Exception:
+                        btn.click_input()
+                    break
 
         time.sleep(0.5)
 
