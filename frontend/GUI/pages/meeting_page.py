@@ -525,6 +525,21 @@ class MeetingFormWidget(QGroupBox):
         except Exception as e:
             logger.warning(f"設定 debug 開始時間失敗: {e}")
 
+    EXAMPLE_TEXT = (
+        "meeting_name: 週會\n"
+        "meeting_type: Webex\n"
+        "meeting_layout: Grid\n"
+        "meeting_url: https://meet.webex.com/xxx\n"
+        "room_id: 12345\n"
+        "meeting_password: abc123\n"
+        "repeat: true\n"
+        "repeat_unit: 7\n"
+        "creator_name: 王小明\n"
+        "creator_email: test@email.com\n"
+        "start_time: 2026-02-15 10:00\n"
+        "end_time: 2026-02-15 11:00"
+    )
+
     def _open_text_input_dialog(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("文字輸入")
@@ -532,29 +547,22 @@ class MeetingFormWidget(QGroupBox):
 
         layout = QVBoxLayout(dialog)
 
+        hint_layout = QHBoxLayout()
         hint = QLabel("hint: 沒有數值不用設定")
-        layout.addWidget(hint)
-
-        placeholder = """
-            meeting_name: 週會\n
-            meeting_type: Webex\n
-            meeting_layout: Grid\n
-            meeting_url: https://meet.webex.com/xxx\n
-            room_id: 12345\n
-            meeting_password: abc123\n
-            repeat: true\n
-            repeat_unit: 7\n
-            creator_name: 王小明\n
-            creator_email: test@email.com\n
-            start_time: 2026-02-15 10:00\n
-            end_time: 2026-02-15 11:00\n
-        """
+        copy_example_btn = QPushButton("📋 複製範例")
+        copy_example_btn.setFixedWidth(120)
+        hint_layout.addWidget(hint)
+        hint_layout.addStretch()
+        hint_layout.addWidget(copy_example_btn)
+        layout.addLayout(hint_layout)
 
         text_edit = QPlainTextEdit()
-        text_edit.setPlaceholderText(placeholder)
+        text_edit.setPlaceholderText(self.EXAMPLE_TEXT)
         text_edit.setStyleSheet("QPlainTextEdit { font-size: 18px; }")
         text_edit.setFixedHeight(500)
         layout.addWidget(text_edit)
+
+        copy_example_btn.clicked.connect(lambda: text_edit.setPlainText(self.EXAMPLE_TEXT))
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
