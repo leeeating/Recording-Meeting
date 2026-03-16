@@ -14,6 +14,9 @@ from app.recorder.zoom_manager import ZoomManager
 from shared.config import config
 from shared.logger import update_addressee
 
+from app.core.scheduler import scheduler
+from app.recorder.monitor_service import monitor_recording, monitor_service
+
 from .utils import action, current_task_id, kill_process
 
 logger = logging.getLogger(__name__)
@@ -90,9 +93,6 @@ def start_recording(task_id: int):
             # -------------------------
 
             # ========== 新增：啟動監控任務 ==========
-            from app.core.scheduler import scheduler
-            from app.recorder.monitor_service import monitor_recording
-
             try:
                 monitor_start = datetime.now() + timedelta(minutes=5)
                 scheduler.add_job(
@@ -156,9 +156,6 @@ def start_recording(task_id: int):
 
 def end_recording(task_id: int):
     # ========== 新增：停止監控任務 ==========
-    from app.core.scheduler import scheduler
-    from app.recorder.monitor_service import monitor_service
-
     try:
         scheduler.remove_job(f"task_monitor_{task_id}")
         logger.info(f"Task {task_id}: 監控任務已停止")

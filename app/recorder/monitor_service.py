@@ -272,11 +272,12 @@ def monitor_recording(task_id: int):
             monitor_service.cleanup_state(task_id)
             return
 
-        # 2. 檢查任務狀態
-        if task.status != TaskStatus.RECORDING:
+        # 2. 檢查任務狀態（已完成或已失敗則停止監控）
+        if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
             logger.info(
-                f"Task {task_id} 狀態不是 RECORDING（當前: {task.status}），停止監控"
+                f"Task {task_id} 狀態為 {task.status}，停止監控"
             )
+            monitor_service.cleanup_state(task_id)
             return
 
         meeting_type = task.meeting.meeting_type.upper()
