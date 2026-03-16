@@ -28,7 +28,7 @@ class TaskManagerPage(BasePage):
         self.api_client = api_client
         self.widget_height = 35
         self.date_width = 180
-        self.header = ["會議名稱", "日期時間", "狀態"]
+        self.header = ["ID", "會議名稱", "日期時間", "狀態"]
         self.n_header = len(self.header)
 
         self._create_widgets()
@@ -58,8 +58,10 @@ class TaskManagerPage(BasePage):
 
         header = self.result_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.result_table.setColumnWidth(2, 160)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.result_table.setColumnWidth(0, 50)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.result_table.setColumnWidth(3, 160)
 
         # --- C. 統計區 ---
         self.status_label = QLabel("共顯示 0 筆資料")
@@ -165,18 +167,24 @@ class TaskManagerPage(BasePage):
             meeting_name = task.get("meeting_name", "") if isinstance(task, dict) else task.meeting_name
             task_id = task.get("id") if isinstance(task, dict) else task.id
 
+            # ID
+            id_item = QTableWidgetItem(str(task_id))
+            id_item.setFlags(id_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.result_table.setItem(row_idx, 0, id_item)
+
             # 會議名稱 (存 task_id 到 UserRole)
             name_item = QTableWidgetItem(str(meeting_name))
             name_item.setFlags(name_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
             name_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             name_item.setData(Qt.ItemDataRole.UserRole, task_id)
-            self.result_table.setItem(row_idx, 0, name_item)
+            self.result_table.setItem(row_idx, 1, name_item)
 
             # 日期時間
             time_item = QTableWidgetItem(start_time_str)
             time_item.setFlags(time_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
             time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.result_table.setItem(row_idx, 1, time_item)
+            self.result_table.setItem(row_idx, 2, time_item)
 
             # 狀態下拉選單
             combo = QComboBox()
@@ -186,7 +194,7 @@ class TaskManagerPage(BasePage):
             combo.currentTextChanged.connect(
                 lambda new_status, r=row_idx: self._on_status_changed(r, new_status)
             )
-            self.result_table.setCellWidget(row_idx, 2, combo)
+            self.result_table.setCellWidget(row_idx, 3, combo)
 
         self._update_summary_from_table()
 
@@ -198,8 +206,8 @@ class TaskManagerPage(BasePage):
             combo.setStyleSheet("")
 
     def _on_status_changed(self, row: int, new_status: str):
-        task_id = self.result_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        combo = self.result_table.cellWidget(row, 2)
+        task_id = self.result_table.item(row, 1).data(Qt.ItemDataRole.UserRole)
+        combo = self.result_table.cellWidget(row, 3)
         self._apply_combo_color(combo, new_status)
 
         self.run_request(
@@ -215,7 +223,7 @@ class TaskManagerPage(BasePage):
 
         statuses = []
         for row in range(self.result_table.rowCount()):
-            combo = self.result_table.cellWidget(row, 2)
+            combo = self.result_table.cellWidget(row, 3)
             if combo:
                 statuses.append(combo.currentText())
         counter = Counter(statuses)
