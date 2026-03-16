@@ -115,7 +115,11 @@ class ZoomManager:
                 raise RuntimeError("找不到 Zoom 會議視窗")
 
             win32gui.ShowWindow(self._hwnd, win32con.SW_MAXIMIZE)
-            win32gui.SetForegroundWindow(self._hwnd)
+            try:
+                win32gui.SetForegroundWindow(self._hwnd)
+            except Exception:
+                pyautogui.press("alt")
+                win32gui.SetForegroundWindow(self._hwnd)
             logger.info(f"已透過 Win32 最大化 Zoom 視窗 (hwnd={self._hwnd})")
             time.sleep(3)
 
