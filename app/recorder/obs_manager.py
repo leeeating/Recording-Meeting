@@ -100,6 +100,8 @@ class OBSManager:
         確保 OBS 錄製的視窗正確對應到當前的 Webex 會議。
         優先用 hwnd 精確比對，失敗再用關鍵字比對。
         """
+        _log = logging.getLogger(f"{__name__}.setup_obs_window")
+
         with action("更改obs中的錄製視窗", is_critical=False):
             resp = self.client.get_input_properties_list_property_items(
                 "webex.exe", "window"
@@ -107,7 +109,7 @@ class OBSManager:
             items = getattr(resp, "property_items", [])
 
             for item in items:
-                logger.debug(f"OBS 視窗選項: {item['itemName']}")
+                _log.debug(f"OBS 視窗選項: {item['itemName']}")
 
             target_name = None
             target_value = None
