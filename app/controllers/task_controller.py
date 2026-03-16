@@ -96,3 +96,13 @@ async def list_jobs(db: Session = Depends(get_db)):
         )
 
     return result
+
+
+@router.delete(
+    "/scheduler/jobs/{job_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="根據 job_id 刪除排程任務",
+)
+async def delete_scheduler_job(job_id: str):
+    scheduler.remove_job(job_id)
+    return None
