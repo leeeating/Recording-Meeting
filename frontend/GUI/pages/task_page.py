@@ -190,6 +190,7 @@ class TaskManagerPage(BasePage):
 
             # 狀態下拉選單
             combo = QComboBox()
+            combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             combo.addItems(self.STATUS_OPTIONS)
             combo.setCurrentText(status_text)
             self._apply_combo_color(combo, status_text)

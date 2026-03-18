@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pydantic import ValidationError
 from PyQt6.QtCore import QDateTime, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
@@ -562,7 +563,11 @@ class MeetingFormWidget(QGroupBox):
         text_edit.setFixedHeight(500)
         layout.addWidget(text_edit)
 
-        copy_example_btn.clicked.connect(lambda: text_edit.setPlainText(self.EXAMPLE_TEXT))
+        def _copy_and_fill():
+            QApplication.clipboard().setText(self.EXAMPLE_TEXT)
+            text_edit.setPlainText(self.EXAMPLE_TEXT)
+
+        copy_example_btn.clicked.connect(_copy_and_fill)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
