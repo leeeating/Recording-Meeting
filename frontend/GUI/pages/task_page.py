@@ -56,6 +56,8 @@ class TaskManagerPage(BasePage):
         self.result_table.setColumnCount(self.n_header)
         self.result_table.setHorizontalHeaderLabels(self.header)
 
+        self.result_table.verticalHeader().setDefaultSectionSize(35)
+
         header = self.result_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
