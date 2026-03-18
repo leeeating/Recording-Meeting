@@ -1,4 +1,6 @@
 import logging
+import sys
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,6 +17,24 @@ from shared.logger import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
+
+
+def _unhandled_exception_hook(exc_type, exc_value, exc_tb):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+        return
+    logger.critical("未捕獲的例外導致程式崩潰", exc_info=(exc_type, exc_value, exc_tb))
+
+
+def _unhandled_thread_exception(args):
+    logger.critical(
+        f"線程 '{args.thread.name}' 未捕獲的例外",
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+    )
+
+
+sys.excepthook = _unhandled_exception_hook
+threading.excepthook = _unhandled_thread_exception
 
 _config_watcher = ConfigWatcher()
 
