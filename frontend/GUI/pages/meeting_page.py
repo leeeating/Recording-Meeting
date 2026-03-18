@@ -549,7 +549,7 @@ class MeetingFormWidget(QGroupBox):
 
         hint_layout = QHBoxLayout()
         hint = QLabel("hint: 沒有數值不用設定")
-        copy_example_btn = QPushButton("📋 複製範例")
+        copy_example_btn = QPushButton("複製範例")
         copy_example_btn.setFixedWidth(120)
         hint_layout.addWidget(hint)
         hint_layout.addStretch()

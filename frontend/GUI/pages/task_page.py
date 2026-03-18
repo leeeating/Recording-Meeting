@@ -56,7 +56,7 @@ class TaskManagerPage(BasePage):
         self.result_table.setColumnCount(self.n_header)
         self.result_table.setHorizontalHeaderLabels(self.header)
 
-        self.result_table.verticalHeader().setDefaultSectionSize(35)
+        self.result_table.verticalHeader().setDefaultSectionSize(40)
 
         header = self.result_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -155,7 +155,9 @@ class TaskManagerPage(BasePage):
         self.result_table.setRowCount(len(data_list))
 
         for row_idx, task in enumerate(data_list):
-            raw_start = task.get("start_time") if isinstance(task, dict) else task.start_time
+            raw_start = (
+                task.get("start_time") if isinstance(task, dict) else task.start_time
+            )
             if isinstance(raw_start, str):
                 start_time_str = raw_start[:16].replace("-", "/").replace("T", " ")
             elif raw_start:
@@ -164,9 +166,15 @@ class TaskManagerPage(BasePage):
                 start_time_str = "-"
 
             raw_status = task.get("status") if isinstance(task, dict) else task.status
-            status_text = raw_status.value if hasattr(raw_status, "value") else str(raw_status)
+            status_text = (
+                raw_status.value if hasattr(raw_status, "value") else str(raw_status)
+            )
 
-            meeting_name = task.get("meeting_name", "") if isinstance(task, dict) else task.meeting_name
+            meeting_name = (
+                task.get("meeting_name", "")
+                if isinstance(task, dict)
+                else task.meeting_name
+            )
             task_id = task.get("id") if isinstance(task, dict) else task.id
 
             # ID
@@ -202,7 +210,7 @@ class TaskManagerPage(BasePage):
 
     def _apply_combo_color(self, combo: QComboBox, status: str):
         color = self.STATUS_COLORS.get(status, "")
-        base = "QComboBox { font-size: 12px;"
+        base = "QComboBox { font-size: 15px;"
         if color:
             combo.setStyleSheet(f"{base} color: {color}; }}")
         else:
