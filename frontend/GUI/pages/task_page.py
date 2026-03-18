@@ -202,10 +202,11 @@ class TaskManagerPage(BasePage):
 
     def _apply_combo_color(self, combo: QComboBox, status: str):
         color = self.STATUS_COLORS.get(status, "")
+        base = "QComboBox { font-size: 12px;"
         if color:
-            combo.setStyleSheet(f"QComboBox {{ color: {color}; }}")
+            combo.setStyleSheet(f"{base} color: {color}; }}")
         else:
-            combo.setStyleSheet("")
+            combo.setStyleSheet(f"{base} }}")
 
     def _on_status_changed(self, row: int, new_status: str):
         task_id = self.result_table.item(row, 1).data(Qt.ItemDataRole.UserRole)
