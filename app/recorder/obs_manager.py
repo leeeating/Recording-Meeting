@@ -151,6 +151,9 @@ class OBSManager:
                 overlay=True,
             )
 
+            current = self.client.get_input_settings("webex.exe")
+            logger.info(f"當前 OBS 錄影視窗: {current.input_settings.get('window', 'N/A')}")
+
     def disconnect(self):
         with action("斷開 OBS 連線"):
             self._check_connect()
