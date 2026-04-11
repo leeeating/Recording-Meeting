@@ -89,7 +89,7 @@ def start_recording(task_id: int):
             # ----- status update -----
             task.status = TaskStatus.RECORDING
             db.commit()
-            logger.info("OBS 正常啟動且錄影中")
+            logger.info("OBS 正常啟動且錄影中，更新狀態為'recording'")
             # -------------------------
 
             # ========== 新增：啟動監控任務 ==========
@@ -151,6 +151,7 @@ def start_recording(task_id: int):
             )
 
             task.status = TaskStatus.FAILED
+            logger.info("start_recording失敗，更新狀態為'failed'")
             db.commit()
 
 
@@ -202,6 +203,7 @@ def end_recording(task_id: int):
             # 4. 更新任務狀態為完成
             if task.status in (TaskStatus.RECORDING, TaskStatus.ERROR):
                 task.status = TaskStatus.COMPLETED
+                logger.info("更新狀態為'completed'")
                 db.commit()
                 logger.info(
                     f"Meeting: {meetig_name}, Task ID {task_id} 錄影成功並已完整關閉相關程式"
@@ -215,6 +217,7 @@ def end_recording(task_id: int):
             )
 
             task.status = TaskStatus.FAILED
+            logger.info("end_recording失敗，更新狀態為'failed'")
             db.commit()
 
 

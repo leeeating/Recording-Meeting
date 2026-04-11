@@ -188,6 +188,7 @@ class TaskResponseSchema(CustomBaseModel):
 
     # Meeting Info.
     meeting_name: str = Field(..., description="所屬會議名稱 (取自 Meeting)")
+    meeting_type: str = Field(..., description="所屬會議類型 (取自 Meeting)")
     start_time: datetime = Field(..., description="排程開始時間 (取自 Meeting)")
     end_time: datetime = Field(..., description="排程結束時間 (取自 Meeting)")
     creator_name: str = Field(..., description="會議建立者名稱 (取自 Meeting)")

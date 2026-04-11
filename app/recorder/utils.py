@@ -29,6 +29,7 @@ def _mark_task_error(task_id: int):
         if task and task.status in (TaskStatus.RECORDING, TaskStatus.ERROR):
             task.status = TaskStatus.ERROR
             db.commit()
+            logger.info(f"Task {task_id}: 更新狀態為 'error'")
 
 
 def find_window_hwnd(title_pattern: str, timeout: int = 30) -> int | None:
