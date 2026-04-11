@@ -97,9 +97,13 @@ def setup_logger():
     logging.config.dictConfig(logging_dict)
 
     def _rotate_to_backend(default_name: str) -> str:
-        """將 rotated 檔案移到 logs/backend/ 目錄"""
+        """將 rotated 檔案移到 logs/backend/，格式: app_20260317.log"""
         log_path = Path(default_name)
-        return str(archive_dir / log_path.name)
+        # default_name 格式: logs/backend/app.log.2026-03-17
+        suffix = log_path.suffix.lstrip(".")  # "2026-03-17"
+        date_str = suffix.replace("-", "")  # "20260317"
+        stem = log_path.stem.split(".")[0]  # "app"
+        return str(archive_dir / f"{stem}_{date_str}.log")
 
     for _, logger_obj in logging.root.manager.loggerDict.items():
         if not isinstance(logger_obj, logging.Logger):
