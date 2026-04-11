@@ -122,8 +122,8 @@ class TaskService:
         )
 
         if not tasks:
-            self.logger.error(f"Meeting ID {meeting.id} has no UPCOMING tasks to update.")
-            raise NotFoundError("Unable to update task for Meeting ID")
+            self.logger.error(f"Meeting ID {meeting.id}({meeting.meeting_name}) has no UPCOMING tasks to update.")
+            raise NotFoundError(f"會議：{meeting.meeting_name}沒有尚未開使的錄影任務可以更新")
 
         for task in tasks:
             self.delete_task(task.id)
@@ -195,8 +195,9 @@ class TaskService:
         """
         start_job_id = f"task_start_{task_id}"
         end_job_id = f"task_end_{task_id}"
+        monitor_job_id = f"task_monitor_{task_id}"
 
-        for job_id in [start_job_id, end_job_id]:
+        for job_id in [start_job_id, end_job_id, monitor_job_id]:
             try:
                 # 檢查 Job 是否存在，若存在則移除
                 if self.scheduler.get_job(job_id):

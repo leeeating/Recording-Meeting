@@ -1,7 +1,7 @@
 from functools import partial
 
 from PyQt6.QtCore import QThreadPool
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from frontend.GUI.events import BottomBar
 from frontend.services.api_client import ApiWorker
@@ -15,6 +15,8 @@ class BasePage(QWidget):
         name="Api Request",
         callback=None,
         lock_widget=None,
+        error_title: str | None = None,
+        error_suffix: str | None = None,
         **kwargs,
     ):
         """
@@ -38,6 +40,8 @@ class BasePage(QWidget):
                 self._on_error,
                 callback=callback,
                 lock_widget=lock_widget,
+                error_title=error_title,
+                error_suffix=error_suffix,
             )
         )
 
@@ -51,7 +55,12 @@ class BasePage(QWidget):
     def _on_success(self, result, success_msg, callback, lock_widget):
         self._on_request_complete(result, success_msg, callback, lock_widget)
 
-    def _on_error(self, err_msg, callback, lock_widget):
+    def _on_error(
+        self, err_msg, callback, lock_widget, error_title=None, error_suffix=None
+    ):
+        if error_title:
+            display_msg = f"{err_msg}\n\n{error_suffix}" if error_suffix else err_msg
+            QMessageBox.warning(self, error_title, display_msg)
         self._on_request_complete(None, err_msg, callback, lock_widget)
 
     def _on_request_complete(self, result, msg, callback, lock_widget):

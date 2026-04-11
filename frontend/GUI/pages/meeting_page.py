@@ -130,6 +130,8 @@ class MeetingManagerPage(BasePage):
                 name="更新會議",
                 callback=self._refresh_list,
                 lock_widget=self.form_widget,
+                error_title="更新會議失敗",
+                error_suffix="提醒：更新會議無法修改已經開始或結束的錄影任務",
             )
 
         # create request
