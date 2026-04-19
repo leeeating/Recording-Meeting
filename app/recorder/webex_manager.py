@@ -123,6 +123,8 @@ class WebexManager:
                 copy_paste(self.meeting_id)
                 time.sleep(3)
 
+                self._handle_guest_info_if_needed()
+
                 password_window = Desktop(backend="uia").window(
                     title="Webex", class_name="CiscoUIFrame"
                 )
@@ -144,6 +146,33 @@ class WebexManager:
             # btn.wait("ready", timeout=60)
             # btn.click_input()
             pyautogui.press("enter")
+
+    def _handle_guest_info_if_needed(self):
+        """
+        偵測是否出現「輸入您的資訊」訪客表單（未登入狀態才會出現）。
+        若出現則按下「下一步」繼續；若未出現則直接跳過。
+        假設 Webex 有勾選「記住我」，姓名/Email 已保留。
+        """
+        webex_window = Desktop(backend="uia").window(title="Webex")
+        guest_info_group = webex_window.child_window(
+            title="輸入您的資訊", control_type="Group"
+        )
+
+        if not guest_info_group.exists(timeout=5):
+            logger.info("未偵測到訪客資訊表單，直接進入密碼輸入")
+            return
+
+        with action("處理訪客資訊表單", is_critical=True, setting=self.setting):
+            logger.info("偵測到訪客資訊表單，點擊[下一步]")
+            next_btn = webex_window.child_window(
+                title_re=".*下一步.*", control_type="Button"
+            )
+            next_btn.wait("ready", timeout=5)
+            try:
+                next_btn.iface_invoke.Invoke()
+            except Exception:
+                next_btn.click_input()
+            time.sleep(2)
 
     def _handle_waiting_room_and_change_layout(self):
         """
