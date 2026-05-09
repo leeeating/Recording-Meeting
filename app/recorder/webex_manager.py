@@ -117,6 +117,7 @@ class WebexManager:
         if self.meeting_url:
             with action("輸入URL", is_critical=True, setting=self.setting):
                 copy_paste(self.meeting_url)
+                self._handle_guest_info_if_needed()
 
         else:
             with action("輸入ID/PW", is_critical=True, setting=self.setting):

@@ -6,25 +6,26 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import database_engine
 from app.core.exceptions import NotFoundError
+from app.core.scheduler import scheduler
 from app.models import TaskORM
 from app.models.enums import TaskStatus
+from app.recorder.monitor_service import monitor_recording, monitor_service
 from app.recorder.obs_manager import OBSManager
 from app.recorder.webex_manager import WebexManager
 from app.recorder.zoom_manager import ZoomManager
 from shared.config import config
 from shared.logger import update_addressee
 
-from app.core.scheduler import scheduler
-from app.recorder.monitor_service import monitor_recording, monitor_service
-
 from .utils import action, current_task_id, kill_process
 
 logger = logging.getLogger(__name__)
 obs_mgr = OBSManager()
 
+
 def _get_scene_name(meeting_type: str) -> str:
     mapping = {"WEBEX": config.WEBEX_SCENE_NAME, "ZOOM": config.ZOOM_SCENE_NAME}
     return mapping[meeting_type]
+
 
 PROCESS_MAP = {
     "ZOOM": "Zoom.exe",
@@ -135,10 +136,6 @@ def start_recording(task_id: int):
             # multiple action
             meeting_mgr.join_meeting_and_change_layout()
 
-            # Error Action
-            if meeting_type == "WEBEX":
-                obs_mgr.setup_obs_window(task.meeting.meeting_name)
-
         except Exception as e:
             db.rollback()
             logger.critical(
@@ -153,6 +150,11 @@ def start_recording(task_id: int):
             task.status = TaskStatus.FAILED
             logger.info("start_recording失敗，更新狀態為'failed'")
             db.commit()
+
+        finally:
+            # Error Action
+            if meeting_type == "WEBEX":
+                obs_mgr.setup_obs_window(task.meeting.meeting_name)
 
 
 def end_recording(task_id: int):
