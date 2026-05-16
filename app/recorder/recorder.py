@@ -32,6 +32,11 @@ PROCESS_MAP = {
     "WEBEX": "CiscoCollabHost.exe",
 }
 
+OBS_SOURCE_MAP = {
+    "ZOOM": "zoom",
+    "WEBEX": "webex.exe",
+}
+
 
 """
 每步驟都會有註解說明錯誤處理的等級
@@ -80,7 +85,10 @@ def start_recording(task_id: int):
             scene_name = _get_scene_name(meeting_type)
 
             # Critical Action
-            obs_mgr.setup_obs_scene(scene_name=scene_name)
+            obs_mgr.setup_obs_scene(
+                scene_name=scene_name,
+                audio_source_name=OBS_SOURCE_MAP[meeting_type],
+            )
 
             # Critical Action
             logger.debug(f"{config.ENV}")

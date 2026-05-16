@@ -89,11 +89,12 @@ class OBSManager:
             )
             logger.warning("[強制]關閉OBS，下次啟動詢問是否使用安全模式")
 
-    def setup_obs_scene(self, scene_name: str):
+    def setup_obs_scene(self, scene_name: str, audio_source_name: str | None = None):
         with action(f"配置場景: {scene_name}", is_critical=True):
             self._check_connect()
             self.client.set_current_program_scene(scene_name)
-            # TODO: audio check
+            if audio_source_name:
+                self._enable_capture_audio(audio_source_name)
 
     def setup_obs_window(self, meeting_name=None):
         """
@@ -153,6 +154,20 @@ class OBSManager:
 
             current = self.client.get_input_settings("webex.exe")
             logger.info(f"當前 OBS 錄影視窗: {current.input_settings.get('window', 'N/A')}")
+
+    def _enable_capture_audio(self, source_name: str):
+        """開啟視窗擷取來源的內建音訊擷取（測試版功能）"""
+        with action(f"啟用 {source_name} 的音訊擷取"):
+            self._check_connect()
+            self.client.set_input_settings(
+                name=source_name,
+                settings={"capture_audio": True},
+                overlay=True,
+            )
+            current = self.client.get_input_settings(source_name)
+            logger.info(
+                f"{source_name} capture_audio = {current.input_settings.get('capture_audio')}"
+            )
 
     def disconnect(self):
         with action("斷開 OBS 連線"):
